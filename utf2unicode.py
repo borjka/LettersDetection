@@ -3,7 +3,12 @@ import tensorflow as tf
 import os
 from PIL import Image
 
-path_to_letters = "/home/borja/imgs_of_letters/"
+check_path = os.getcwd()
+if check_path.split('/')[1] == 'Users':
+    path_to_letters = "/Users/borja/Stuff/imgs_of_letters"
+else:    
+    path_to_letters = "/home/borja/imgs_of_letters/"
+
 path_to_model = "trained_model/model"
 images_for_letter = 10269
 batch_size = 128
