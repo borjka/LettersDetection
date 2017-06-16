@@ -4,11 +4,8 @@ import os
 from PIL import Image
 
 check_path = os.getcwd()
-if check_path.split('/')[1] == 'Users':
-    path_to_letters = "/Users/borja/Stuff/imgs_of_letters/"
-else:    
-    path_to_letters = "/home/borja/imgs_of_letters/"
 
+path_to_letters = "imgs_of_letters/"
 path_to_model = "trained_model/model"
 images_for_letter = 10269
 batch_size = 128
@@ -62,9 +59,6 @@ class Model:
         self.indices = [i for i in range(Model.sample_size)]
         np.random.shuffle(self.indices)
         print('<<<<<<<New part \"'+part+'\" of data loaded>>>>>>>')
-
-        print(Model.X.shape)
-        print(Model.Y.shape)
 
 
     def show_image(self, idx):
@@ -146,7 +140,6 @@ class Model:
         saver.restore(sess, tf.train.latest_checkpoint('trained_model/'))
 
         while (self.i+1) * batch_size < Model.sample_size:
-            print('!!!!!BATCH '+str(self.i)+'!!!!!')
             X, Y = self.take_batch()
             feed_dict = {
                 x: X,
@@ -178,10 +171,6 @@ class Model:
         self.i += 1
         return X_batch, Y_batch
 
-def test():
-    my_model = Model()
-    my_model.load_sample()
-    my_model.build_graph(True)
 
 def main():
 
