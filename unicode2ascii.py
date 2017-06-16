@@ -5,7 +5,7 @@ from PIL import Image
 
 check_path = os.getcwd()
 if check_path.split('/')[1] == 'Users':
-    path_to_letters = "/Users/borja/Stuff/imgs_of_letters"
+    path_to_letters = "/Users/borja/Stuff/imgs_of_letters/"
 else:    
     path_to_letters = "/home/borja/imgs_of_letters/"
 
@@ -28,7 +28,6 @@ class Model:
 
     def __init__(self):
         self.indices = None
-        self.epoch = 0
         self.i = 0
 
     
@@ -63,6 +62,9 @@ class Model:
         self.indices = [i for i in range(Model.sample_size)]
         np.random.shuffle(self.indices)
         print('<<<<<<<New part \"'+part+'\" of data loaded>>>>>>>')
+
+        print(Model.X.shape)
+        print(Model.Y.shape)
 
 
     def show_image(self, idx):
@@ -144,6 +146,7 @@ class Model:
         saver.restore(sess, tf.train.latest_checkpoint('trained_model/'))
 
         while (self.i+1) * batch_size < Model.sample_size:
+            print('!!!!!BATCH '+str(self.i)+'!!!!!')
             X, Y = self.take_batch()
             feed_dict = {
                 x: X,
@@ -152,13 +155,13 @@ class Model:
                 learning_rate: 0.0001
             }
             if checkCorrectness:
-                _, acc, corr_pred, outp = sess.run([train_step, accuracy, correct_prediction, output],
+                acc, corr_pred, outp = sess.run([accuracy, correct_prediction, output],
                     feed_dict=feed_dict)
-                for i, item in enumerate(corr_pred):
-                    if not item:
-                        print(main_dict[np.argmax(outp[i])]+str(' : ')+main_dict[np.argmax(Y[i])])
-                        Image.fromarray((X[i, :, :, 0] * 255).astype('uint8'), 'L').show()
-                break
+                # for i, item in enumerate(corr_pred):
+                #     if not item:
+                #         print(main_dict[np.argmax(outp[i])]+str(' : ')+main_dict[np.argmax(Y[i])])
+                #         Image.fromarray((X[i, :, :, 0] * 255).astype('uint8'), 'L').show()
+                print(acc)
 
             else:
                 _, acc  = sess.run([train_step, accuracy], feed_dict=feed_dict)
@@ -170,11 +173,15 @@ class Model:
     def take_batch(self):
         if self.i % 10 == 0:
             print(str(self.i)+'/'+str(round(Model.sample_size / batch_size)))
-        X_batch = Model.X[self.indices[self.i*batch_size: (self.i+1)*batch_size]].reshape(batch_size, h, w, 1)
+        X_batch = Model.X[self.indices[self.i*batch_size : (self.i+1)*batch_size]].reshape(batch_size, h, w, 1)
         Y_batch = Model.Y[self.indices[self.i*batch_size : (self.i+1)*batch_size]]
         self.i += 1
         return X_batch, Y_batch
 
+def test():
+    my_model = Model()
+    my_model.load_sample()
+    my_model.build_graph(True)
 
 def main():
 
@@ -188,10 +195,10 @@ def main():
             my_model = None
             my_model = Model()
             my_model.load_sample(part)
-            my_model.build_graph()
+            my_model.build_graph(True)
 
 
 if __name__ == '__main__':
-    main()
+    test()
 
 
