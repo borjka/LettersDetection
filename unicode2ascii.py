@@ -3,31 +3,40 @@ import tensorflow as tf
 import os
 from PIL import Image
 
-check_path = os.getcwd()
-
 path_to_letters = "imgs_of_letters/"
 path_to_model = "trained_model/model"
-images_for_letter = 10269
+all_letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+images_for_letter = 5134
 batch_size = 128
-n_parts = 4
+n_parts = 8
 n_epochs = 5
 part_of_GPU = 0.4
-w = 32  
+w = 32
 h = 32
-main_dict = {}
 
 class Model:
     X = None
     Y = None
     sample_size = 0
     N_letters = 52
-    
+    letter_to_number = {}
+    number_to_letter = {}
+
+
+    @classmethod
+    def init_dict(cls):
+        alph_len = len(all_letters) // 2
+        for i in range(alph_len):
+            cls.letter_to_number[all_letters[i]+'.npy'] = i
+            cls.letter_to_number['big_'+all_letters[i+alph_len]+'.npy'] = i+alph_len
+        cls.number_to_letter = {value:key for key,value in cls.letter_to_number.items()}
+
 
     def __init__(self):
         self.indices = None
         self.i = 0
 
-    
+
     def load_sample(self, part='0'):
         '''Check that sample was loaded. If not will load it.
         Objects - Model.X
@@ -38,19 +47,21 @@ class Model:
         files_list = os.listdir(abs_path)
         if files_list[0][0] == '.':
             del files_list[0]
-        # print(files_list)
 
         arrs = []
-        index = 0
         for f in files_list:
-            main_dict[index] = f
-            index += 1
+            Y_part = np.zeros((images_for_letter, Model.N_letters))
+            Y_part[:, Model.letter_to_number[f]] = 1
+
+            if Model.Y is None:
+                Model.Y = Y_part
+            else:
+                Model.Y = np.hstack((Model.Y, Y_part))
             arrs.append(np.load(abs_path+f))
-        # print(main_dict)
 
         Model.X = np.concatenate(arrs, axis=0)
         Model.sample_size = Model.X.shape[0]
-        Model.N_letters = len(files_list)
+        assert(Model.N_letters == len(files_list))
 
         Model.Y = np.zeros((Model.sample_size, Model.N_letters))
         for i in range(Model.N_letters):
@@ -68,10 +79,10 @@ class Model:
             if isinstance(idx, list):
                 for i in idx:
                     Image.fromarray((self.X[i] * 255).astype('uint8'), 'L').show()
-                    print(self.Y[i])
+                    print(Model.number_to_letter[np.argmax(self.Y[i])])
             elif isinstance(idx, int):
                 Image.fromarray((self.X[idx] * 255).astype('uint8'), 'L').show()
-                print(self.Y[idx])
+                print(Model.number_to_letter[np.argmax(self.Y[idx])])
             else:
                 print('Wrong type of \'idx\'')
 
@@ -88,7 +99,7 @@ class Model:
         '''Create Tensorflow graph and save it to "trained model" folder'''
         assert(Model.X is not None and Model.Y is not None)
         assert(Model.sample_size != 0)
-    
+
         tf.reset_default_graph()
         x = tf.placeholder(tf.float32, shape=[None, h, w, 1], name='x')
         y = tf.placeholder(tf.float32, shape=[None, Model.N_letters], name='y')
@@ -105,7 +116,7 @@ class Model:
             W_conv1 = tf.Variable(tf.truncated_normal([5, 5, 32, 32], stddev=0.01), name="W")
             b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]), name="b")
             # (batch_size x 16 x 16 x 32)
-            feature_map1 = tf.nn.relu(Model.conv2d(feature_map0, W_conv1) + b_conv1)                
+            feature_map1 = tf.nn.relu(Model.conv2d(feature_map0, W_conv1) + b_conv1)
 
         with tf.variable_scope('conv2'):
             W_conv2 = tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.01), name="W")
@@ -130,8 +141,8 @@ class Model:
             cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=logits))
             train_step = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cross_entropy, name='train_step')
             correct_prediction = tf.equal(tf.argmax(output, 1), tf.argmax(y, 1), name='isCorrect')
-            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name='accuracy')   
-        
+            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name='accuracy')
+
         saver = tf.train.Saver()
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=part_of_GPU)
         sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
@@ -173,21 +184,24 @@ class Model:
 
 
 def main():
+    Model.init_dict()
 
     all_parts = ''
     for i in range(n_parts):
         all_parts += str(i)
-    
+
     for ep in range(n_epochs):
         print("Epoch " + str(ep))
         for part in all_parts:
-            my_model = None
             my_model = Model()
             my_model.load_sample(part)
-            my_model.build_graph(True)
+            my_model.show_image([5000, 20000, 10000, 100000])
+
+            return 0
+            # my_model.build_graph()
 
 
 if __name__ == '__main__':
-    test()
+    main()
 
 
