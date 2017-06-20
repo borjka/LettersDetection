@@ -47,6 +47,7 @@ class Model:
         files_list = os.listdir(abs_path)
         if files_list[0][0] == '.':
             del files_list[0]
+        print(files_list)
 
         arrs = []
         for f in files_list:
@@ -56,16 +57,14 @@ class Model:
             if Model.Y is None:
                 Model.Y = Y_part
             else:
-                Model.Y = np.hstack((Model.Y, Y_part))
+                Model.Y = np.vstack((Model.Y, Y_part))
             arrs.append(np.load(abs_path+f))
 
         Model.X = np.concatenate(arrs, axis=0)
         Model.sample_size = Model.X.shape[0]
         assert(Model.N_letters == len(files_list))
-
-        Model.Y = np.zeros((Model.sample_size, Model.N_letters))
-        for i in range(Model.N_letters):
-            Model.Y[i*images_for_letter:(i+1)*images_for_letter, i] = 1
+        print(Model.Y.shape)
+        print(Model.X.shape)
 
         self.indices = [i for i in range(Model.sample_size)]
         np.random.shuffle(self.indices)
@@ -148,7 +147,7 @@ class Model:
         sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
         init = tf.global_variables_initializer()
         sess.run(init)
-        saver.restore(sess, tf.train.latest_checkpoint('trained_model/'))
+        # saver.restore(sess, tf.train.latest_checkpoint('trained_model/'))
 
         while (self.i+1) * batch_size < Model.sample_size:
             X, Y = self.take_batch()
@@ -182,26 +181,25 @@ class Model:
         self.i += 1
         return X_batch, Y_batch
 
+def test():
+    Model.init_dict()
+    my_model = Model()
+    my_model.load_sample()
+    print(Model.Y)
 
 def main():
     Model.init_dict()
 
-    all_parts = ''
-    for i in range(n_parts):
-        all_parts += str(i)
+    all_parts = '01234567'
 
     for ep in range(n_epochs):
         print("Epoch " + str(ep))
         for part in all_parts:
             my_model = Model()
             my_model.load_sample(part)
-            my_model.show_image([5000, 20000, 10000, 100000])
-
-            return 0
-            # my_model.build_graph()
+            my_model.build_graph()
 
 
 if __name__ == '__main__':
     main()
-
 
