@@ -50,10 +50,10 @@ class Model:
         print(files_list)
 
         arrs = []
+        Model.Y = None
         for f in files_list:
             Y_part = np.zeros((images_for_letter, Model.N_letters))
             Y_part[:, Model.letter_to_number[f]] = 1
-
             if Model.Y is None:
                 Model.Y = Y_part
             else:
@@ -110,12 +110,16 @@ class Model:
             b_conv0 = tf.Variable(tf.constant(0.1, shape=[32]), name="b")
             # (batch_size x 32 x 32 x 32)
             feature_map0 = tf.nn.relu(Model.conv2d_nostrides(x, W_conv0) + b_conv0)
+            # tf.summary.histogram('W', W_conv0)
+            # tf.summary.histogram('b', b_conv0)
 
         with tf.variable_scope('conv1'):
             W_conv1 = tf.Variable(tf.truncated_normal([5, 5, 32, 32], stddev=0.01), name="W")
             b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]), name="b")
             # (batch_size x 16 x 16 x 32)
             feature_map1 = tf.nn.relu(Model.conv2d(feature_map0, W_conv1) + b_conv1)
+            # tf.summary.histogram('W', W_conv1)
+            # tf.summary.histogram('b', b_conv1)
 
         with tf.variable_scope('conv2'):
             W_conv2 = tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.01), name="W")
@@ -123,31 +127,45 @@ class Model:
             # (batch_size x 8 x 8 x 64)
             feature_map2 = tf.nn.relu(Model.conv2d(feature_map1, W_conv2) + b_conv2)
             feature_map2_flatten = tf.reshape(feature_map2, [-1, 8 * 8 * 64])
+            # tf.summary.histogram('W', W_conv2)
+            # tf.summary.histogram('b', b_conv2)
 
         with tf.variable_scope('dense1'):
             W1 = tf.Variable(tf.truncated_normal([8 * 8 * 64, 4096], stddev=0.01), name="W")
             b1 = tf.Variable(tf.constant(0.1, shape=[4096]), name="b")
             h1 = tf.nn.relu(tf.matmul(feature_map2_flatten, W1) + b1)
             h1_after_dropout = tf.nn.dropout(h1, dropout)
+            # tf.summary.histogram('W', W1)
+            # tf.summary.histogram('b', W1)
 
         with tf.variable_scope('dense2'):
             W2 = tf.Variable(tf.truncated_normal([4096, Model.N_letters], stddev=0.01), name="W")
             b2 = tf.Variable(tf.constant(0.1, shape=[Model.N_letters]), name="b")
             logits = tf.matmul(h1_after_dropout, W2) + b2
             output = tf.nn.softmax(logits, name='outputs')
+            # tf.summary.histogram('W', W2)
+            # tf.summary.histogram('b', W2)
+
 
         with tf.variable_scope('train_stuff'):
             cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=logits))
-            train_step = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cross_entropy, name='train_step')
+            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+            train_step = optimizer.minimize(cross_entropy, name='train_step')
+
             correct_prediction = tf.equal(tf.argmax(output, 1), tf.argmax(y, 1), name='isCorrect')
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name='accuracy')
+            # tf.summary.scalar('error', cross_entropy)
+            # tf.summary.scalar('acc', accuracy)
+        # merged = tf.summary.merge_all()
 
         saver = tf.train.Saver()
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=part_of_GPU)
         sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
         init = tf.global_variables_initializer()
         sess.run(init)
-        # saver.restore(sess, tf.train.latest_checkpoint('trained_model/'))
+        # writer = tf.summary.FileWriter('TB', sess.graph)
+
+        saver.restore(sess, tf.train.latest_checkpoint('trained_model/'))
 
         while (self.i+1) * batch_size < Model.sample_size:
             X, Y = self.take_batch()
@@ -167,7 +185,9 @@ class Model:
                 print(acc)
 
             else:
-                _, acc  = sess.run([train_step, accuracy], feed_dict=feed_dict)
+
+                _, obt_y, prime_y, acc  = sess.run([train_step, output, y, accuracy], feed_dict=feed_dict)
+                # writer.add_summary(summary)
                 if self.i % 100 == 0:
                     print(acc)
         saver.save(sess, path_to_model)
