@@ -5,8 +5,11 @@ from PIL import Image
 
 path_to_letters = "imgs_of_letters/"
 path_to_model = "trained_model/model"
-all_letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-images_for_letter = 5134
+all_letters = "abcdefghijklmnopqrstuvwxyzABDEFGHIJKLMNQRTVYZ"
+little_letters = "abcdefghijklmnopqrstuvwxyz"
+big_letters = "ABDEFGHIJKLMNQRTVYZ"
+non_letters = "fgijkyhrFYR"
+images_for_letter = 3528
 batch_size = 128
 n_parts = 8
 n_epochs = 5
@@ -18,17 +21,17 @@ class Model:
     X = None
     Y = None
     sample_size = 0
-    N_letters = 52
+    N_letters = 46
     letter_to_number = {}
     number_to_letter = {}
 
 
     @classmethod
     def init_dict(cls):
-        alph_len = len(all_letters) // 2
-        for i in range(alph_len):
-            cls.letter_to_number[all_letters[i]+'.npy'] = i
-            cls.letter_to_number['big_'+all_letters[i+alph_len]+'.npy'] = i+alph_len
+        for i in range(len(little_letters)):
+            cls.letter_to_number[little_letters[i]+'.npy'] = i
+        for i in range(len(big_letters)):
+            cls.letter_to_number['big_'+big_letters[i].lower()+'.npy'] = i + len(little_letters)
         cls.number_to_letter = {value:key for key,value in cls.letter_to_number.items()}
 
 
@@ -53,7 +56,10 @@ class Model:
         Model.Y = None
         for f in files_list:
             Y_part = np.zeros((images_for_letter, Model.N_letters))
-            Y_part[:, Model.letter_to_number[f]] = 1
+            if f.startswith('non'):
+                Y_part[:, Model.N_letters-1] = 1
+            else:
+                Y_part[:, Model.letter_to_number[f]] = 1
             if Model.Y is None:
                 Model.Y = Y_part
             else:
@@ -62,7 +68,6 @@ class Model:
 
         Model.X = np.concatenate(arrs, axis=0)
         Model.sample_size = Model.X.shape[0]
-        assert(Model.N_letters == len(files_list))
         print(Model.Y.shape)
         print(Model.X.shape)
 
@@ -165,7 +170,7 @@ class Model:
         sess.run(init)
         # writer = tf.summary.FileWriter('TB', sess.graph)
 
-        saver.restore(sess, tf.train.latest_checkpoint('trained_model/'))
+        # saver.restore(sess, tf.train.latest_checkpoint('trained_model/'))
 
         while (self.i+1) * batch_size < Model.sample_size:
             X, Y = self.take_batch()
@@ -186,7 +191,7 @@ class Model:
 
             else:
 
-                _, obt_y, prime_y, acc  = sess.run([train_step, output, y, accuracy], feed_dict=feed_dict)
+                _, acc  = sess.run([train_step, accuracy], feed_dict=feed_dict)
                 # writer.add_summary(summary)
                 if self.i % 100 == 0:
                     print(acc)
@@ -203,9 +208,7 @@ class Model:
 
 def test():
     Model.init_dict()
-    my_model = Model()
-    my_model.load_sample()
-    print(Model.Y)
+    print(Model.letter_to_number)
 
 def main():
     Model.init_dict()
