@@ -4,7 +4,7 @@ from skimage import transform, data
 import math
 import time
 
-def random_points_for_estimation(h=32, w=32, k=0.2):
+def random_points_for_estimation(h=32, w=32, k=0.3):
     dx = h * k
     dy = w * k
     src = [[0, 0], [h, 0], [0, w], [h, w]]
@@ -63,13 +63,23 @@ def add_random_blur(img, p=0.02):
                 img[row, col] = np.random.rand()
 
 
+def check_time():
+    matrices = np.load('homographies.npy')
+    start_time = time.time()
+    index = np.random.choice(10000)
+    matrix = matrices[index]
+    img = Image.open('uni_letter.png')
+    new_pix = transform.warp(img, matrix)
+    print(time.time() - start_time)
+
+
 def process_image(img):
     pxl = np.array(img)
     pxl = homography(pxl)
     add_random_blur(pxl)
-    # Image.fromarray((pxl * 255).astype('uint8'), 'L').show()
+    Image.fromarray((pxl * 255).astype('uint8'), 'L').show()
     return pxl
 
 
 if __name__ == '__main__':
-   generate_img()
+    check_time()

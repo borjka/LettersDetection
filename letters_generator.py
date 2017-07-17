@@ -30,6 +30,21 @@ def isFontFormat(file_name):
         return False
 
 
+
+def generate_alphabet():
+    paths_to_fonts = find_all_paths()
+    for letter in all_letters:
+        font = np.random.choice(paths_to_fonts)
+        angle = 0
+        img = Image.new('L', (h, w), bg_color)
+        draw = ImageDraw.Draw(img)
+        font = ImageFont.truetype(font, size=font_size)
+        letter_w, letter_h = draw.textsize(letter, font=font)
+        pos = (10, 10)
+        draw.text(pos, letter, font=font, fill=font_color)
+        img.show()
+        break
+
 def pos_based_on_alpha(w, h, img_w, img_h, alpha):
     """Find the best position of letter on the image
     based on angle of rotation
@@ -111,13 +126,15 @@ def generate_batch(batch_size=128):
     X = np.dstack(X)
     X = np.swapaxes(X, 0, 2)
     X = np.swapaxes(X, 1, 2)
-    idx = [12, 53, 100]
-    for i in idx:
-        Image.fromarray((X[i] * 255).astype('uint8'), 'L').show()
-        print(all_letters[np.argmax(Y[i])])
+    X = X.reshape(batch_size, X.shape[1], X.shape[2], 1)
+    # for i in idx:
+    #     Image.fromarray((X[i, :, :, 0] * 255).astype('uint8'), 'L').show()
+    #     print(all_letters[np.argmax(Y[i])])
+    return X, Y
 
 def main():
-    generate_batch()
+    # generate_batch()
+    generate_alphabet()
 
 
 if __name__ == '__main__':

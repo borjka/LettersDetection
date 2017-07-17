@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import os
 from PIL import Image
+import letters_generator
 
 path_to_letters = "imgs_of_letters/"
 path_to_model = "trained_model/model"
@@ -21,7 +22,7 @@ class Model:
     X = None
     Y = None
     sample_size = 0
-    N_letters = 46
+    N_letters = 45
     letter_to_number = {}
     number_to_letter = {}
 
@@ -101,8 +102,6 @@ class Model:
 
     def build_graph(self, checkCorrectness=False):
         '''Create Tensorflow graph and save it to "trained model" folder'''
-        assert(Model.X is not None and Model.Y is not None)
-        assert(Model.sample_size != 0)
 
         tf.reset_default_graph()
         x = tf.placeholder(tf.float32, shape=[None, h, w, 1], name='x')
@@ -164,21 +163,22 @@ class Model:
         # merged = tf.summary.merge_all()
 
         saver = tf.train.Saver()
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=part_of_GPU)
-        sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+        # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=part_of_GPU)
+        # sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+        sess = tf.Session()
         init = tf.global_variables_initializer()
         sess.run(init)
         # writer = tf.summary.FileWriter('TB', sess.graph)
 
-        # saver.restore(sess, tf.train.latest_checkpoint('trained_model/'))
-
-        while (self.i+1) * batch_size < Model.sample_size:
-            X, Y = self.take_batch()
+        saver.restore(sess, tf.train.latest_checkpoint('trained_model/'))
+        i = 0
+        while True:
+            X, Y = letters_generator.generate_batch()
             feed_dict = {
                 x: X,
                 y: Y,
                 dropout: 0.5,
-                learning_rate: 0.0001
+                learning_rate: 0.001
             }
             if checkCorrectness:
                 acc, corr_pred, outp = sess.run([accuracy, correct_prediction, output],
@@ -193,9 +193,12 @@ class Model:
 
                 _, acc  = sess.run([train_step, accuracy], feed_dict=feed_dict)
                 # writer.add_summary(summary)
-                if self.i % 100 == 0:
-                    print(acc)
-        saver.save(sess, path_to_model)
+                if i  % 10 == 0:
+                    print(i, ' : ', acc)
+            i += 1
+            if i % 1000 == 0:
+                print('saved')
+                saver.save(sess, path_to_model)
 
 
     def take_batch(self):
@@ -211,16 +214,9 @@ def test():
     print(Model.letter_to_number)
 
 def main():
-    Model.init_dict()
-
-    all_parts = '01234567'
-
     for ep in range(n_epochs):
-        print("Epoch " + str(ep))
-        for part in all_parts:
-            my_model = Model()
-            my_model.load_sample(part)
-            my_model.build_graph()
+        my_model = Model()
+        my_model.build_graph()
 
 
 if __name__ == '__main__':
