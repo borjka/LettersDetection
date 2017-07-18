@@ -63,7 +63,7 @@ def load_pack_of_homographies():
     return np.load('homographies.npy')
 
 
-def add_random_blur(img, p=0.02):
+def add_random_blur(img, p=0.04):
     """Add some random pixels to the image with some probability.
 
     Args:

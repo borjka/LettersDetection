@@ -9,8 +9,6 @@ import homography
 
 basic_path = "fonts/"
 all_letters = "abcdefghijklmnopqrstuvwxyzABDEFGHIJKLMNQRTVYZ"
-all_letters_list = list(all_letters)
-angles = [-7, -5, -3, 0, 3, 5, 7]
 
 
 def find_all_paths():
@@ -84,7 +82,7 @@ def pos_based_on_alpha(w, h, img_w, img_h, alpha):
 
 
 def generate_random_letter(letter="w",
-                           font_size=14,
+                           font_size=20,
                            w=32,
                            h=32,
                            bg_color=0,
@@ -106,17 +104,16 @@ def generate_random_letter(letter="w",
         3-D np.array containing images with pixels normalised to be in range of [0, 1]
     """
 
-    letter = np.random.choice(all_letters_list)
+    letter_index = np.random.randint(len(all_letters))
+    letter = all_letters[letter_index]
     path_to_font = np.random.choice(paths_to_fonts)
-    angle = np.random.choice(angles)
     img = Image.new('L', (h, w), bg_color)
     draw = ImageDraw.Draw(img)
     font = ImageFont.truetype(path_to_font, size=font_size)
     letter_w, letter_h = draw.textsize(letter, font=font)
     pos = (3, 3)
     draw.text(pos, letter, font=font, fill=font_color)
-    img = img.rotate(angle)
-    return letter, homography.process_image(img)
+    return letter_index, homography.process_image(img)
 
 
 def generate_batch(batch_size=128):
@@ -130,17 +127,16 @@ def generate_batch(batch_size=128):
     X = np.swapaxes(X, 0, 2)
     X = np.swapaxes(X, 1, 2)
     X = X.reshape(batch_size, X.shape[1], X.shape[2], 1)
-    # for i in idx:
-    #     Image.fromarray((X[i, :, :, 0] * 255).astype('uint8'), 'L').show()
-    #     print(all_letters[np.argmax(Y[i])])
+    idx = [30, 12, 100]
+    for i in idx:
+        Image.fromarray((X[i, :, :, 0] * 255).astype('uint8'), 'L').show()
+        print(all_letters[np.argmax(Y[i])])
     return X, Y
 
 def main():
-    # generate_batch()
-    # generate_alphabet()
-    letter, pxls = generate_random_letter()
-    print(letter)
-    Image.fromarray((pxls * 255).astype('uint8'), 'L').show()
+    start_time = time.time()
+    generate_batch()
+    print(time.time() - start_time)
 
 
 if __name__ == '__main__':
