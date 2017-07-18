@@ -9,6 +9,8 @@ import homography
 
 basic_path = "fonts/"
 all_letters = "abcdefghijklmnopqrstuvwxyzABDEFGHIJKLMNQRTVYZ"
+all_letters_list = list(all_letters)
+angles = [-7, -5, -3, 0, 3, 5, 7]
 
 
 def find_all_paths():
@@ -30,6 +32,8 @@ def isFontFormat(file_name):
         return False
 
 
+paths_to_fonts = find_all_paths()
+
 
 def generate_alphabet():
     paths_to_fonts = find_all_paths()
@@ -44,6 +48,7 @@ def generate_alphabet():
         draw.text(pos, letter, font=font, fill=font_color)
         img.show()
         break
+
 
 def pos_based_on_alpha(w, h, img_w, img_h, alpha):
     """Find the best position of letter on the image
@@ -100,20 +105,18 @@ def generate_random_letter(letter="w",
     Returns:
         3-D np.array containing images with pixels normalised to be in range of [0, 1]
     """
-    paths_to_fonts = find_all_paths()
-    angles = [-10, -5, 0, 5, 10]
-    letter_index = np.random.randint(len(all_letters))
-    letter = all_letters[letter_index]
-    font = np.random.choice(paths_to_fonts)
+
+    letter = np.random.choice(all_letters_list)
+    path_to_font = np.random.choice(paths_to_fonts)
     angle = np.random.choice(angles)
     img = Image.new('L', (h, w), bg_color)
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype(font, size=font_size)
+    font = ImageFont.truetype(path_to_font, size=font_size)
     letter_w, letter_h = draw.textsize(letter, font=font)
-    pos = pos_based_on_alpha(letter_w, letter_h, w, h, angle)
+    pos = (3, 3)
     draw.text(pos, letter, font=font, fill=font_color)
     img = img.rotate(angle)
-    return letter_index, homography.process_image(img)
+    return letter, homography.process_image(img)
 
 
 def generate_batch(batch_size=128):
@@ -134,7 +137,10 @@ def generate_batch(batch_size=128):
 
 def main():
     # generate_batch()
-    generate_alphabet()
+    # generate_alphabet()
+    letter, pxls = generate_random_letter()
+    print(letter)
+    Image.fromarray((pxls * 255).astype('uint8'), 'L').show()
 
 
 if __name__ == '__main__':

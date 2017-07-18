@@ -4,6 +4,10 @@ from skimage import transform, data
 import math
 import time
 
+
+AMOUNT_OF_HOMOGRAPHIES = 10000
+
+
 def random_points_for_estimation(h=32, w=32, k=0.3):
     dx = h * k
     dy = w * k
@@ -39,11 +43,24 @@ def homography(img):
         New np.array containing processed pixels.
     """
 
-    src, dst = random_points_for_estimation(h=img.shape[0], w=img.shape[1])
-    proj_trans = transform.ProjectiveTransform()
-    proj_trans.estimate(src, dst)
+    index = np.random.choice(AMOUNT_OF_HOMOGRAPHIES)
+    proj_trans = transform.ProjectiveTransform(matrix=all_homographies[index])
     new_pix = transform.warp(img, proj_trans)
     return new_pix
+
+
+def generate_pack_of_homographies():
+    homographies = np.zeros((AMOUNT_OF_HOMOGRAPHIES, 3, 3))
+    for i in range(AMOUNT_OF_HOMOGRAPHIES):
+        src, dst = random_points_for_estimation()
+        proj_trans = transform.ProjectiveTransform()
+        proj_trans.estimate(src, dst)
+        homographies[i] = proj_trans.params
+    np.save('homographies.npy', homographies)
+
+
+def load_pack_of_homographies():
+    return np.load('homographies.npy')
 
 
 def add_random_blur(img, p=0.02):
@@ -66,10 +83,12 @@ def add_random_blur(img, p=0.02):
 def check_time():
     matrices = np.load('homographies.npy')
     start_time = time.time()
-    index = np.random.choice(10000)
-    matrix = matrices[index]
-    img = Image.open('uni_letter.png')
-    new_pix = transform.warp(img, matrix)
+    for i in range(5):
+        index = np.random.choice(AMOUNT_OF_HOMOGRAPHIES)
+        matrix = matrices[index]
+        proj_trans = transform.ProjectiveTransform(matrix=matrix)
+        new_pix = transform.warp(img, proj_trans)
+        Image.fromarray((new_pix * 255).astype('uint8'), 'L').show()
     print(time.time() - start_time)
 
 
@@ -77,9 +96,9 @@ def process_image(img):
     pxl = np.array(img)
     pxl = homography(pxl)
     add_random_blur(pxl)
-    Image.fromarray((pxl * 255).astype('uint8'), 'L').show()
     return pxl
 
+all_homographies = load_pack_of_homographies()
 
 if __name__ == '__main__':
     check_time()
