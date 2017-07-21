@@ -34,7 +34,6 @@ paths_to_fonts = find_all_paths()
 
 
 def generate_alphabet():
-    paths_to_fonts = find_all_paths()
     for letter in all_letters:
         font = np.random.choice(paths_to_fonts)
         angle = 0
@@ -44,7 +43,6 @@ def generate_alphabet():
         letter_w, letter_h = draw.textsize(letter, font=font)
         pos = (10, 10)
         draw.text(pos, letter, font=font, fill=font_color)
-        img.show()
         break
 
 
@@ -113,7 +111,7 @@ def generate_random_letter(letter="w",
     letter_w, letter_h = draw.textsize(letter, font=font)
     pos = (3, 3)
     draw.text(pos, letter, font=font, fill=font_color)
-    return letter_index, homography.process_image(img)
+    return letter_index, (np.array(img) / 255)
 
 
 def generate_batch(batch_size=128):
@@ -127,15 +125,15 @@ def generate_batch(batch_size=128):
     X = np.swapaxes(X, 0, 2)
     X = np.swapaxes(X, 1, 2)
     X = X.reshape(batch_size, X.shape[1], X.shape[2], 1)
-    idx = [30, 12, 100]
-    for i in idx:
-        Image.fromarray((X[i, :, :, 0] * 255).astype('uint8'), 'L').show()
-        print(all_letters[np.argmax(Y[i])])
     return X, Y
 
 def main():
     start_time = time.time()
-    generate_batch()
+    X, Y = generate_batch()
+    idx = [10, 20, 30]
+    for i in idx:
+        Image.fromarray((X[i, :, :, 0] * 255).astype('uint8'), 'L').show()
+    print(X.shape, Y.shape)
     print(time.time() - start_time)
 
 

@@ -92,12 +92,6 @@ def check_time():
     print(time.time() - start_time)
 
 
-def process_image(img):
-    pxl = np.array(img)
-    pxl = homography(pxl)
-    add_random_blur(pxl)
-    return pxl
-
 all_homographies = load_pack_of_homographies()
 
 if __name__ == '__main__':
