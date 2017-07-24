@@ -3,6 +3,7 @@ import tensorflow as tf
 import os
 from PIL import Image
 import letters_generator
+import homography
 
 path_to_letters = "imgs_of_letters/"
 path_to_model = "trained_model/model"
@@ -44,9 +45,10 @@ class Model:
 
     def build_graph(self, checkCorrectness=False):
         '''Create Tensorflow graph and save it to "trained model" folder'''
-
         tf.reset_default_graph()
-        x = tf.placeholder(tf.float32, shape=[None, h, w, 1], name='x')
+        x0 = tf.placeholder(tf.float32, shape=[None, 32, 32, 1], name='x')
+        homogr = tf.placeholder(tf.float32, shape=[8], name='homography')
+        x = tf.contrib.image.transform(x0, homogr)
         y = tf.placeholder(tf.float32, shape=[None, Model.N_letters], name='y')
         dropout = tf.placeholder(tf.float32, name='dropout')
         learning_rate = tf.placeholder(tf.float32, name='learning_rate')
@@ -97,11 +99,23 @@ class Model:
 
         # saver.restore(sess, tf.train.latest_checkpoint('trained_model/'))
         i = 0
+        homographies = homography.load_pack_of_homographies()
+        homogr_value = None
+        N_images = 0
+
         while True:
+            if N_images % 512 == 0:
+                homogr_idx = np.random.randint(homography.AMOUNT_OF_HOMOGRAPHIES)
+                h = homographies[homogr_idx].reshape(1, 9)
+                homogr_value = h[0][:8]
+
             X, Y = letters_generator.generate_batch()
+            N_images += 128
+
             feed_dict = {
-                x: X,
+                x0: X,
                 y: Y,
+                homogr: homogr_value,
                 dropout: 0.5,
                 learning_rate: 0.001
             }
