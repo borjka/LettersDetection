@@ -46,6 +46,7 @@ class Model:
     def build_graph(self, checkCorrectness=False):
         '''Create Tensorflow graph and save it to "trained model" folder'''
         tf.reset_default_graph()
+
         x0 = tf.placeholder(tf.float32, shape=[None, 32, 32, 1], name='x')
         homogr = tf.placeholder(tf.float32, shape=[8], name='homography')
         x = tf.contrib.image.transform(x0, homogr)
@@ -104,20 +105,23 @@ class Model:
         N_images = 0
 
         while True:
-            if N_images % 512 == 0:
+            if N_images % 128 == 0:
                 homogr_idx = np.random.randint(homography.AMOUNT_OF_HOMOGRAPHIES)
                 h = homographies[homogr_idx].reshape(1, 9)
                 homogr_value = h[0][:8]
 
             X, Y = letters_generator.generate_batch()
             N_images += 128
+            if i % 20 == 0:
+                idx = np.random.randint(128)
+                Image.fromarray((X[idx, :, :, 0] * 255).astype('uint8'), 'L').show()
 
             feed_dict = {
                 x0: X,
                 y: Y,
                 homogr: homogr_value,
                 dropout: 0.5,
-                learning_rate: 0.001
+                learning_rate: 0.005
             }
             if checkCorrectness:
                 acc, corr_pred, outp = sess.run([accuracy, correct_prediction, output],
@@ -135,7 +139,7 @@ class Model:
                 if i  % 10 == 0:
                     print(i, ' : ', acc)
             i += 1
-            if i % 100 == 0:
+            if i % 1000 == 0:
                 print('saved')
                 saver.save(sess, path_to_model)
 

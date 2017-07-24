@@ -92,7 +92,5 @@ def check_time():
     print(time.time() - start_time)
 
 
-all_homographies = load_pack_of_homographies()
-
 if __name__ == '__main__':
     check_time()
