@@ -112,9 +112,6 @@ class Model:
 
             X, Y = letters_generator.generate_batch()
             N_images += 128
-            if i % 20 == 0:
-                idx = np.random.randint(128)
-                Image.fromarray((X[idx, :, :, 0] * 255).astype('uint8'), 'L').show()
 
             feed_dict = {
                 x0: X,
@@ -133,8 +130,10 @@ class Model:
                 print(acc)
 
             else:
-
                 _, acc  = sess.run([train_step, accuracy], feed_dict=feed_dict)
+                # idx = np.random.randint(128)
+                # Image.fromarray((sample_imgs[idx, :, :, 0] * 255).astype('uint8'), 'L').show()
+
                 # writer.add_summary(summary)
                 if i  % 10 == 0:
                     print(i, ' : ', acc)

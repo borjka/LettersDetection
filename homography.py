@@ -8,7 +8,7 @@ import time
 AMOUNT_OF_HOMOGRAPHIES = 10000
 
 
-def random_points_for_estimation(h=32, w=32, k=0.3):
+def random_points_for_estimation(h=32, w=32, k=0.2):
     dx = h * k
     dy = w * k
     src = [[0, 0], [h, 0], [0, w], [h, w]]

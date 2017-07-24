@@ -5,6 +5,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 import os
 import time
 import homography
+import skimage
 
 
 basic_path = "fonts/"
@@ -109,9 +110,12 @@ def generate_random_letter(letter="w",
     draw = ImageDraw.Draw(img)
     font = ImageFont.truetype(path_to_font, size=font_size)
     letter_w, letter_h = draw.textsize(letter, font=font)
-    pos = (3, 3)
+    max_x, max_y = w - letter_w, h - letter_h
+    pos = (np.random.randint(max_x), np.random.randint(max_y))
     draw.text(pos, letter, font=font, fill=font_color)
-    return letter_index, (np.array(img) / 255)
+    pxls = np.array(img) / 255
+    pxls = skimage.util.random_noise(pxls, mode='salt', amount=0.03)
+    return letter_index, pxls
 
 
 def generate_batch(batch_size=128):
@@ -135,6 +139,23 @@ def main():
         Image.fromarray((X[i, :, :, 0] * 255).astype('uint8'), 'L').show()
     print(X.shape, Y.shape)
     print(time.time() - start_time)
+
+def time_check():
+
+    start_time = time.time()
+    _, img = generate_random_letter()
+    homography.add_random_blur(img)
+    img = Image.fromarray((img * 255).astype('uint8'), 'L')
+    t = time.time() - start_time
+    print(t)
+
+    start_time = time.time()
+    _, img = generate_random_letter()
+    img = skimage.util.random_noise(img, mode='salt', amount=0.02)
+    img = Image.fromarray((img * 255).astype('uint8'), 'L')
+    t = time.time() - start_time
+    print(t)
+    img.show()
 
 
 if __name__ == '__main__':
