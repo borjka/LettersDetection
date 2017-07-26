@@ -1,15 +1,14 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import math
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import os
 import time
-import homography
 import skimage
 
 
 basic_path = "fonts/"
-all_letters = "abcdefghijklmnopqrstuvwxyzABDEFGHIJKLMNQRTVYZ"
+all_symbols = "abcdefghijklmnopqrstuvwxyzABDEFGHIJKLMNQRTVYZ/-+(),.~\'fgijkyhrFYR"
+N_symbols = 54
 
 
 def find_all_paths():
@@ -34,65 +33,16 @@ def isFontFormat(file_name):
 paths_to_fonts = find_all_paths()
 
 
-def generate_alphabet():
-    for letter in all_letters:
-        font = np.random.choice(paths_to_fonts)
-        angle = 0
-        img = Image.new('L', (h, w), bg_color)
-        draw = ImageDraw.Draw(img)
-        font = ImageFont.truetype(font, size=font_size)
-        letter_w, letter_h = draw.textsize(letter, font=font)
-        pos = (10, 10)
-        draw.text(pos, letter, font=font, fill=font_color)
-        break
-
-
-def pos_based_on_alpha(w, h, img_w, img_h, alpha):
-    """Find the best position of letter on the image
-    based on angle of rotation
-
-    Args:
-        w, h: width and height of drawing letter
-        img_w, img_h: width and height of image
-        alpha: angle of letter's rotation
-
-    Return:
-        Best position
-    """
-
-    cos_a, sin_a = math.cos(math.radians(abs(alpha))), math.sin(math.radians(abs(alpha)))
-    new_w = cos_a * w + sin_a * h
-    new_h = sin_a * w + cos_a * h
-    l_x_pos = abs(new_w - w)
-    r_x_pos = img_w - max(new_w, w)
-    delta_x = r_x_pos - l_x_pos
-    t_y_pos = abs(new_h - h)
-    b_y_pos = img_h - max(new_h, h)
-    delta_y = b_y_pos - t_y_pos
-    all_k_x = [0.2, 0.4, 0.6, 0.8]
-    all_k_y = [0.2, 0.4, 0.6, 0.8]
-    k_x = np.random.choice(all_k_x)
-    k_y = np.random.choice(all_k_y)
-
-    x = round(l_x_pos + k_x * delta_x)
-    y = round(t_y_pos + k_y * delta_y)
-
-    return (x, y)
-
-
-def generate_random_letter(letter="w",
-                           font_size=20,
+def generate_random_letter(font_size=20,
                            w=32,
                            h=32,
                            bg_color=0,
                            font_color=255,
-                           nonLetter=False
-                           ):
-    """Creates samples for one letter with all possible fonts,
-    rotations and different positions on the image.
+                           isToShow=False):
+    """Generate random letter, math symbol or non-letter with relatively
+    random position and random font.
 
     Args:
-        letter: letter to be drawn
         font_size: letter size
         w: width of image used to drawing letter
         h: height of image used to drawing letter
@@ -100,27 +50,35 @@ def generate_random_letter(letter="w",
         font_color: color of text on the image
 
     Returns:
-        3-D np.array containing images with pixels normalised to be in range of [0, 1]
+        1) index of symbol in general array of symbols and 2) values of pixels in range [0, 1]
     """
 
-    letter_index = np.random.randint(len(all_letters))
-    letter = all_letters[letter_index]
+    letter_index = np.random.randint(len(all_symbols))
+    letter = all_symbols[letter_index]
     path_to_font = np.random.choice(paths_to_fonts)
     img = Image.new('L', (h, w), bg_color)
     draw = ImageDraw.Draw(img)
     font = ImageFont.truetype(path_to_font, size=font_size)
     letter_w, letter_h = draw.textsize(letter, font=font)
-    max_x, max_y = w - letter_w, h - letter_h
-    pos = (np.random.randint(max_x), np.random.randint(max_y))
+    max_x, max_y = w - letter_w - 2, h - letter_h - 2
+    # pos = (x, y)
+    pos = (np.random.randint(low=2, high=max_x), np.random.randint(low=2, high=max_y))
     draw.text(pos, letter, font=font, fill=font_color)
+    if letter_index >= N_symbols:
+        img = img.rotate(180)
     pxls = np.array(img) / 255
-    pxls = skimage.util.random_noise(pxls, mode='salt', amount=0.03)
+    pxls = skimage.util.random_noise(pxls, mode='gaussian', clip=True,
+                                     mean=0, var=0.02)
+    if isToShow:
+        Image.fromarray((pxls * 255).astype('uint8'), 'L').show()
+    if letter_index >= N_symbols:
+        return N_symbols, pxls
     return letter_index, pxls
 
 
-def generate_batch(batch_size=128):
+def generate_batch(batch_size=128, andSave=False):
     X = []
-    Y = np.zeros((batch_size, len(all_letters)))
+    Y = np.zeros((batch_size, N_symbols+1))
     for i in range(batch_size):
         y, x = generate_random_letter()
         Y[i, y] = 1
@@ -129,33 +87,23 @@ def generate_batch(batch_size=128):
     X = np.swapaxes(X, 0, 2)
     X = np.swapaxes(X, 1, 2)
     X = X.reshape(batch_size, X.shape[1], X.shape[2], 1)
+    if andSave:
+        for i in range(batch_size):
+            img = Image.fromarray((X[i, :, :, 0] * 255).astype('uint8'), 'L')
+            index = np.argmax(Y[i])
+            print(i)
+            if index == N_symbols:
+                img.save('batch/non_letter{0}.png'.format(i))
+            elif index >= 45:
+                img.save('batch/math_symb{0}.png'.format(i))
+            else:
+                img.save('batch/'+all_symbols[index]+'{0}.png'.format(i))
     return X, Y
 
+
 def main():
-    start_time = time.time()
-    X, Y = generate_batch()
-    idx = [10, 20, 30]
-    for i in idx:
-        Image.fromarray((X[i, :, :, 0] * 255).astype('uint8'), 'L').show()
+    X, Y = generate_batch(andSave=True)
     print(X.shape, Y.shape)
-    print(time.time() - start_time)
-
-def time_check():
-
-    start_time = time.time()
-    _, img = generate_random_letter()
-    homography.add_random_blur(img)
-    img = Image.fromarray((img * 255).astype('uint8'), 'L')
-    t = time.time() - start_time
-    print(t)
-
-    start_time = time.time()
-    _, img = generate_random_letter()
-    img = skimage.util.random_noise(img, mode='salt', amount=0.02)
-    img = Image.fromarray((img * 255).astype('uint8'), 'L')
-    t = time.time() - start_time
-    print(t)
-    img.show()
 
 
 if __name__ == '__main__':
