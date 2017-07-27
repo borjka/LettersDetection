@@ -2,6 +2,8 @@ import tensorflow as tf
 import numpy as np
 import letters_generator
 import homography
+import math
+from PIL import Image
 
 class Model:
 
@@ -24,6 +26,7 @@ class Model:
         self.saver = None
         self.processed_X = None
         self._Y = None
+        self.var_to_save = None
         self.path_to_model = path_to_model
 
 
@@ -86,6 +89,7 @@ class Model:
         self.saver = tf.train.Saver()
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
+        self.var_to_save = W_conv2
 
 
     def save_model(self):
@@ -100,6 +104,11 @@ class Model:
             self.saver.restore(self.sess, tf.train.latest_checkpoint(self.path_to_model))
         else:
             print('Nowhere to restore. First build the graph.')
+
+
+    def interesting_weights(self):
+        self.restore_model()
+        return self.sess.run(self.var_to_save)
 
 
     def train_model(self,
@@ -128,10 +137,72 @@ class Model:
         self.save_model()
 
 
+    def classify_one_image(self, img_pxls):
+        self.restore_model()
+
+        if len(img_pxls.shape) !=  4:
+            pxls = np.reshape(img_pxls, (1, img_pxls.shape[0], img_pxls.shape[1], 1))
+        else:
+            pxls = img_pxls
+
+        feed_dict = {
+            self.X: pxls,
+            self.dropout: 1,
+        }
+
+        answ  = self.sess.run([self.Y_], feed_dict=feed_dict)
+        letter_index = np.argmax(answ[0])
+        if letter_index == letters_generator.N_symbols:
+            return 'non-letter'
+        return letters_generator.all_symbols[letter_index]
+
+
+    def classify_batch_of_images(self, imgs_pxls, andSave=False):
+        self.restore_model()
+
+        N_imgs = imgs_pxls.shape[0]
+        if len(imgs_pxls.shape) !=  4:
+            pxls = np.reshape(imgs_pxls, (N_imgs, imgs_pxls.shape[0], img_pxls.shape[1], 1))
+        else:
+            pxls = imgs_pxls
+
+        feed_dict = {
+            self.X: pxls,
+            self.dropout: 1,
+        }
+
+        answ  = self.sess.run([self.Y_], feed_dict=feed_dict)[0]
+        labels = []
+        for i in range(N_imgs):
+            letter_index = np.argmax(answ[i])
+            if letter_index == letters_generator.N_symbols:
+                labels.append('non-letter')
+            else:
+                labels.append(letters_generator.all_symbols[letter_index])
+            if andSave:
+                img = Image.fromarray((pxls[i, :, :, 0] * 255).astype('uint8'), 'L')
+                img.save('answers/{0}_{1}.png'.format(labels[i], i))
+        return labels
+
+
+def save_weights_for_visualization(weights):
+    arr_weights = []
+    w = []
+    for i in range(32):
+        arr_weights.append(weights[:, :, 0, i])
+        min_val = np.amin(arr_weights[i])
+        max_val = np.amax(arr_weights[i])
+        w.append((arr_weights[i] - min_val) / (max_val - min_val))
+
+        img = Image.fromarray((w[i] * 255).astype('uint8'), 'L')
+        img.save('weights/'+str(i)+'.png')
+
+
 def main():
     my_model = Model()
-    my_model.build_graph()
-    my_model.train_model()
+    my_model.build_graph(isToProcess=False)
+    # save_weights_for_visualization(my_model.interesting_weights())
+    my_model.train_model(learning_rate=0.00005, N_iter=5000)
 
 
 if __name__ == '__main__':
