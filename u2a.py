@@ -3,6 +3,8 @@ import numpy as np
 import letters_generator
 import homography
 import math
+import os
+import time
 from PIL import Image
 
 class Model:
@@ -13,7 +15,7 @@ class Model:
                  channels=1,
                  path_to_model="trained_model/"
                 ):
-        self.one_hot_len = letters_generator.N_symbols+1
+        self.one_hot_len = letters_generator.N_symbols
         self.training_iteration = 0
         self.accuracy = 0
         self.learning_rate = tf.placeholder(tf.float32)
@@ -152,8 +154,6 @@ class Model:
 
         answ  = self.sess.run([self.Y_], feed_dict=feed_dict)
         letter_index = np.argmax(answ[0])
-        if letter_index == letters_generator.N_symbols:
-            return 'non-letter'
         return letters_generator.all_symbols[letter_index]
 
 
@@ -162,7 +162,7 @@ class Model:
 
         N_imgs = imgs_pxls.shape[0]
         if len(imgs_pxls.shape) !=  4:
-            pxls = np.reshape(imgs_pxls, (N_imgs, imgs_pxls.shape[0], img_pxls.shape[1], 1))
+            pxls = np.reshape(imgs_pxls, (N_imgs, imgs_pxls.shape[1], imgs_pxls.shape[2], 1))
         else:
             pxls = imgs_pxls
 
@@ -175,10 +175,7 @@ class Model:
         labels = []
         for i in range(N_imgs):
             letter_index = np.argmax(answ[i])
-            if letter_index == letters_generator.N_symbols:
-                labels.append('non-letter')
-            else:
-                labels.append(letters_generator.all_symbols[letter_index])
+            labels.append(letters_generator.all_symbols[letter_index])
             if andSave:
                 img = Image.fromarray((pxls[i, :, :, 0] * 255).astype('uint8'), 'L')
                 img.save('answers/{0}_{1}.png'.format(labels[i], i))
@@ -201,9 +198,16 @@ def save_weights_for_visualization(weights):
 def main():
     my_model = Model()
     my_model.build_graph(isToProcess=False)
-    # save_weights_for_visualization(my_model.interesting_weights())
-    my_model.train_model(learning_rate=0.00005, N_iter=5000)
-
+    # basic_path = 'uletters/'
+    # all_images = os.listdir(basic_path)
+    # symbols = []
+    # for img_name in all_images:
+        # if img_name[0] == '.':
+            # continue
+        # img = Image.open(basic_path+img_name)
+        # symbols.append(np.array(img) / 255)
+    # symbols = np.array(symbols)
+    # my_model.classify_batch_of_images(symbols, andSave=True)
 
 if __name__ == '__main__':
     main()
