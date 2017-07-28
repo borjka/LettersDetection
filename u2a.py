@@ -19,7 +19,9 @@ class Model:
         self.training_iteration = 0
         self.accuracy = 0
         self.learning_rate = tf.placeholder(tf.float32)
-        self.dropout = tf.placeholder(tf.float32)
+        self.dropout1 = tf.placeholder(tf.float32)
+        self.dropout2 = tf.placeholder(tf.float32)
+        self.dropout3 = tf.placeholder(tf.float32)
         self.X = tf.placeholder(tf.float32, shape=[None, img_h, img_w, channels])
         self.Y = tf.placeholder(tf.float32, shape=[None, self.one_hot_len])
         self.transformation_matrix = tf.placeholder(tf.float32, shape=[8])
@@ -53,13 +55,15 @@ class Model:
             W_conv0 = tf.Variable(tf.truncated_normal([5, 5, 1, 32], stddev=0.01), name="W")
             b_conv0 = tf.Variable(tf.constant(0.1, shape=[32]), name="b")
             # (batch_size x 32 x 32 x 32)
-            feature_map0 = tf.nn.relu(Model.conv2d_nostrides(self.processed_X, W_conv0) + b_conv0)
+            feature_map0_before_dropout = tf.nn.relu(Model.conv2d_nostrides(self.processed_X, W_conv0) + b_conv0)
+            feature_map0 = tf.nn.dropout(feature_map0_before_dropout, self.dropout1)
 
         with tf.variable_scope('conv1'):
             W_conv1 = tf.Variable(tf.truncated_normal([5, 5, 32, 32], stddev=0.01), name="W")
             b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]), name="b")
             # (batch_size x 16 x 16 x 32)
-            feature_map1 = tf.nn.relu(Model.conv2d(feature_map0, W_conv1) + b_conv1)
+            feature_map1_before_dropout = tf.nn.relu(Model.conv2d(feature_map0, W_conv1) + b_conv1)
+            feature_map1 = tf.nn.dropout(feature_map1_before_dropout, self.dropout2)
 
         with tf.variable_scope('conv2'):
             W_conv2 = tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.01), name="W")
@@ -72,7 +76,7 @@ class Model:
             W1 = tf.Variable(tf.truncated_normal([8 * 8 * 64, 4096], stddev=0.01), name="W")
             b1 = tf.Variable(tf.constant(0.1, shape=[4096]), name="b")
             h1 = tf.nn.relu(tf.matmul(feature_map2_flatten, W1) + b1)
-            h1_after_dropout = tf.nn.dropout(h1, self.dropout)
+            h1_after_dropout = tf.nn.dropout(h1, self.dropout3)
 
         with tf.variable_scope('dense2'):
             W2 = tf.Variable(tf.truncated_normal([4096, self.one_hot_len], stddev=0.01), name="W")
@@ -96,14 +100,15 @@ class Model:
 
     def save_model(self):
         if self.sess is not None:
-            self.saver.save(self.sess, self.path_to_model)
+            self.saver.save(self.sess, self.path_to_model + 'my_model')
         else:
             print('Nothing to save. First train something')
 
 
     def restore_model(self):
         if self.sess is not None:
-            self.saver.restore(self.sess, tf.train.latest_checkpoint(self.path_to_model))
+            if os.path.exists(self.path_to_model + 'checkpoint'):
+                self.saver.restore(self.sess, tf.train.latest_checkpoint(self.path_to_model))
         else:
             print('Nowhere to restore. First build the graph.')
 
@@ -114,8 +119,8 @@ class Model:
 
 
     def train_model(self,
-                    isToRestore=False,
-                    learning_rate=0.001,
+                    isToRestore=True,
+                    learning_rate=0.0001,
                     dropout=0.5,
                     N_iter=1000):
 
@@ -127,7 +132,9 @@ class Model:
             feed_dict = {
                 self.X: X_batch,
                 self.Y: Y_batch,
-                self.dropout: dropout,
+                self.dropout1: dropout,
+                self.dropout2: dropout,
+                self.dropout3: dropout,
                 self.transformation_matrix: homography.generate_transformation_matrix(),
                 self.learning_rate: learning_rate
             }
@@ -197,7 +204,8 @@ def save_weights_for_visualization(weights):
 
 def main():
     my_model = Model()
-    my_model.build_graph(isToProcess=False)
+    my_model.build_graph()
+    my_model.train_model(N_iter=30000)
     # basic_path = 'uletters/'
     # all_images = os.listdir(basic_path)
     # symbols = []
@@ -208,6 +216,7 @@ def main():
         # symbols.append(np.array(img) / 255)
     # symbols = np.array(symbols)
     # my_model.classify_batch_of_images(symbols, andSave=True)
+
 
 if __name__ == '__main__':
     main()
