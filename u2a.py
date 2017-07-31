@@ -135,7 +135,7 @@ class Model:
                 self.dropout1: dropout,
                 self.dropout2: dropout,
                 self.dropout3: dropout,
-                self.transformation_matrix: homography.generate_transformation_matrix(),
+                # self.transformation_matrix: homography.generate_transformation_matrix(),
                 self.learning_rate: learning_rate
             }
 
@@ -204,7 +204,7 @@ def save_weights_for_visualization(weights):
 
 def main():
     my_model = Model()
-    my_model.build_graph()
+    my_model.build_graph(isToProcess=False)
     my_model.train_model(N_iter=30000)
     # basic_path = 'uletters/'
     # all_images = os.listdir(basic_path)

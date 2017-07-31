@@ -69,6 +69,7 @@ def generate_random_letter(font_size=20,
     pxls = np.array(img) / 255
     pxls = skimage.util.random_noise(pxls, mode='gaussian', clip=True,
                                      mean=0, var=0.02)
+    pxls = skimage.util.random_noise(pxls, mode='salt', amount=0.02)
     if isToShow:
         Image.fromarray((pxls * 255).astype('uint8'), 'L').show()
     if letter_index >= N_symbols:
