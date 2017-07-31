@@ -7,8 +7,8 @@ import skimage
 
 
 basic_path = "fonts/"
-all_symbols = "abcdefghijklmnopqrstuvwxyzABDEFGHIJKLMNQRTVYZ-.|\'"
-N_symbols = 49
+all_symbols = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-.|\'"
+N_symbols = 56
 
 
 def find_all_paths():
@@ -76,7 +76,7 @@ def generate_random_letter(font_size=20,
     return letter_index, pxls
 
 
-def generate_batch(batch_size=128, andSave=False):
+def generate_batch(batch_size=32, andSave=False):
     X = []
     Y = np.zeros((batch_size, N_symbols))
     for i in range(batch_size):
