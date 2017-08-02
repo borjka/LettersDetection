@@ -32,6 +32,7 @@ class Model:
         self._Y = None
         self.var_to_save = None
         self.path_to_model = path_to_model
+        self.logits_to_check = None
 
 
 
@@ -95,7 +96,8 @@ class Model:
         self.saver = tf.train.Saver()
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
-        self.var_to_save = W_conv2
+        self.var_to_save = W_conv0
+        self.logits_to_check = logits
 
 
     def save_model(self):
@@ -116,6 +118,28 @@ class Model:
     def interesting_weights(self):
         self.restore_model()
         return self.sess.run(self.var_to_save)
+
+
+    def check_top3_logits(self, img_pxls):
+        self.restore_model()
+
+        if len(img_pxls.shape) !=  4:
+            pxls = np.reshape(img_pxls, (1, img_pxls.shape[0], img_pxls.shape[1], 1))
+        else:
+            pxls = img_pxls
+
+        feed_dict = {
+            self.X: pxls,
+            self.dropout1: 1,
+            self.dropout2: 1,
+            self.dropout3: 1,
+        }
+
+        logits = self.sess.run([self.logits_to_check], feed_dict=feed_dict)[0][0]
+        args_of_max = logits.argsort()[-3:][::-1]
+        for arg_i in args_of_max:
+            print(letters_generator.all_symbols[arg_i], " : ", logits[arg_i])
+        Image.fromarray((pxls[0, :, :, 0] * 255).astype('uint8'), 'L').show()
 
 
     def train_model(self,
@@ -175,7 +199,9 @@ class Model:
 
         feed_dict = {
             self.X: pxls,
-            self.dropout: 1,
+            self.dropout1: 1,
+            self.dropout2: 1,
+            self.dropout3:1
         }
 
         answ  = self.sess.run([self.Y_], feed_dict=feed_dict)[0]
@@ -205,7 +231,10 @@ def save_weights_for_visualization(weights):
 def main():
     my_model = Model()
     my_model.build_graph(isToProcess=False)
-    my_model.train_model(N_iter=30000)
+    # save_weights_for_visualization(my_model.interesting_weights())
+    my_model.train_model(N_iter=10000)
+
+    ##### CLASSIFY UNICODE #####
     # basic_path = 'uletters/'
     # all_images = os.listdir(basic_path)
     # symbols = []
@@ -216,6 +245,17 @@ def main():
         # symbols.append(np.array(img) / 255)
     # symbols = np.array(symbols)
     # my_model.classify_batch_of_images(symbols, andSave=True)
+
+    ##### CHECK LOGITS #####
+    # basic_path = 'new_uletters/'
+    # all_images = os.listdir(basic_path)
+    # for img_name in all_images:
+        # if img_name[0] == '.':
+            # continue
+        # img = Image.open(basic_path+img_name)
+        # img = np.array(img) / 255
+        # my_model.check_top3_logits(img)
+        # input()
 
 
 if __name__ == '__main__':

@@ -4,11 +4,12 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 import os
 import time
 import skimage
+from nonletter_generator import generate_scribble, generate_shapes
 
 
 basic_path = "fonts/"
 all_symbols = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-.|\'"
-N_symbols = 56
+N_symbols = len(all_symbols) + 1 # +1 if nonletters are counted
 
 
 def find_all_paths():
@@ -81,7 +82,17 @@ def generate_batch(batch_size=32, andSave=False):
     X = []
     Y = np.zeros((batch_size, N_symbols))
     for i in range(batch_size):
-        y, x = generate_random_letter()
+        isLetter = np.random.choice([True, False], p=[0.95, 0.05])
+        if isLetter:
+            y, x = generate_random_letter()
+        else:
+            mode = np.random.choice([0, 1], p=[0.5, 0.5])
+            if mode == 0:
+                x = generate_scribble()
+            if mode == 1:
+                x = generate_shapes()
+            y = N_symbols - 1
+
         Y[i, y] = 1
         X.append(x)
     X = np.dstack(X)
@@ -93,7 +104,7 @@ def generate_batch(batch_size=32, andSave=False):
             img = Image.fromarray((X[i, :, :, 0] * 255).astype('uint8'), 'L')
             index = np.argmax(Y[i])
             print(i)
-            if index == N_symbols:
+            if index == N_symbols - 1:
                 img.save('batch/non_letter{0}.png'.format(i))
             elif index >= 45:
                 img.save('batch/math_symb{0}.png'.format(i))
