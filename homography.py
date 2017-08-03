@@ -5,7 +5,7 @@ import math
 import time
 
 
-def light_random_points_for_estimation(h=32, w=32, k=0.15):
+def light_random_points_for_estimation(h=32, w=32, k=0.1):
     dx = w * k
     dy = h * k
     src = [[0, 0], [h, 0], [0, w], [h, w]]

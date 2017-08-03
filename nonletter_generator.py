@@ -88,11 +88,7 @@ def generate_scribble():
     img = cv2.cvtColor(canvcrop, cv2.COLOR_RGB2GRAY)
     # cv2.imshow('scribble', img)
     # cv2.waitKey(0)
-    pxls = img / 255
-    pxls = skimage.util.random_noise(pxls, mode='gaussian', clip=True,
-                                     mean=0, var=0.02)
-    pxls = skimage.util.random_noise(pxls, mode='salt', amount=0.02)
-    return pxls
+    return img
 
 
 def generate_shapes(h=32,
@@ -126,11 +122,7 @@ def generate_shapes(h=32,
     # cv2.imshow('poly', img)
     # cv2.waitKey(0)
 
-    pxls = img / 255
-    pxls = skimage.util.random_noise(pxls, mode='gaussian', clip=True,
-                                     mean=0, var=0.02)
-    pxls = skimage.util.random_noise(pxls, mode='salt', amount=0.02)
-    return pxls
+    return img
 
 
 if __name__ == '__main__':

@@ -34,6 +34,15 @@ def isFontFormat(file_name):
 paths_to_fonts = find_all_paths()
 
 
+def add_blur(img):
+    pxls = np.array(img) / 255
+    pxls = skimage.util.random_noise(pxls, mode='gaussian', clip=True,
+                                     mean=0, var=0.02)
+    pxls = skimage.util.random_noise(pxls, mode='salt', amount=0.02)
+    return pxls
+
+
+
 def generate_random_letter(font_size=20,
                            w=32,
                            h=32,
@@ -65,16 +74,8 @@ def generate_random_letter(font_size=20,
     # pos = (x, y)
     pos = (np.random.randint(low=2, high=max_x), np.random.randint(low=2, high=max_y))
     draw.text(pos, letter, font=font, fill=font_color)
-    if letter_index >= N_symbols:
-        img = img.rotate(180)
-    pxls = np.array(img) / 255
-    pxls = skimage.util.random_noise(pxls, mode='gaussian', clip=True,
-                                     mean=0, var=0.02)
-    pxls = skimage.util.random_noise(pxls, mode='salt', amount=0.02)
-    if isToShow:
-        Image.fromarray((pxls * 255).astype('uint8'), 'L').show()
-    if letter_index >= N_symbols:
-        return N_symbols, pxls
+    pxls = np.array(img)
+    assert(letter_index < len(all_symbols))
     return letter_index, pxls
 
 
@@ -85,12 +86,13 @@ def generate_batch(batch_size=32, andSave=False):
         isLetter = np.random.choice([True, False], p=[0.95, 0.05])
         if isLetter:
             y, x = generate_random_letter()
+            x = add_blur(x)
         else:
             mode = np.random.choice([0, 1], p=[0.5, 0.5])
             if mode == 0:
-                x = generate_scribble()
+                x = add_blur(generate_scribble())
             if mode == 1:
-                x = generate_shapes()
+                x = add_blur(generate_shapes())
             y = N_symbols - 1
 
         Y[i, y] = 1
@@ -116,6 +118,21 @@ def generate_batch(batch_size=32, andSave=False):
 def main():
     X, Y = generate_batch(andSave=True)
     print(X.shape, Y.shape)
+    # for _ in range(10):
+        # s, pxls = generate_random_letter()
+        # Image.fromarray(pxls.astype('uint8'), 'L').show()
+        # input(all_symbols[s])
+
+    # for _ in range(10):
+        # pxls = generate_shapes()
+        # Image.fromarray(pxls.astype('uint8'), 'L').show()
+        # input()
+
+    # for _ in range(10):
+        # pxls = generate_scribble()
+        # Image.fromarray(pxls.astype('uint8'), 'L').show()
+        # input()
+
 
 
 if __name__ == '__main__':

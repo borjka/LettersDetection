@@ -138,7 +138,10 @@ class Model:
         logits = self.sess.run([self.logits_to_check], feed_dict=feed_dict)[0][0]
         args_of_max = logits.argsort()[-3:][::-1]
         for arg_i in args_of_max:
-            print(letters_generator.all_symbols[arg_i], " : ", logits[arg_i])
+            if arg_i == self.one_hot_len - 1:
+                print('non_letter')
+            else:
+                print(letters_generator.all_symbols[arg_i], " : ", logits[arg_i])
         Image.fromarray((pxls[0, :, :, 0] * 255).astype('uint8'), 'L').show()
 
 
@@ -146,7 +149,7 @@ class Model:
                     isToRestore=True,
                     learning_rate=0.0001,
                     dropout=0.5,
-                    N_iter=1000):
+                    N_iter=10000):
 
         if isToRestore:
             self.restore_model()
@@ -159,7 +162,7 @@ class Model:
                 self.dropout1: dropout,
                 self.dropout2: dropout,
                 self.dropout3: dropout,
-                # self.transformation_matrix: homography.generate_transformation_matrix(),
+                self.transformation_matrix: homography.generate_transformation_matrix(),
                 self.learning_rate: learning_rate
             }
 
@@ -167,7 +170,9 @@ class Model:
             if i % 20 == 0:
                 print('Iteration {0} / {1}'.format(i, N_iter))
                 print('Accuracy: {0}'.format(acc))
-        self.save_model()
+            if i % 2000 == 0 or i == N_iter - 1:
+                self.save_model()
+
 
 
     def classify_one_image(self, img_pxls):
@@ -199,16 +204,21 @@ class Model:
 
         feed_dict = {
             self.X: pxls,
+            # self.transformation_matrix: homography.generate_transformation_matrix(),
             self.dropout1: 1,
             self.dropout2: 1,
-            self.dropout3:1
+            self.dropout3: 1
         }
 
-        answ  = self.sess.run([self.Y_], feed_dict=feed_dict)[0]
+        # pxls = self.sess.run([self.processed_X], feed_dict=feed_dict)[0]
+        answ = self.sess.run([self.Y_], feed_dict=feed_dict)[0]
         labels = []
         for i in range(N_imgs):
             letter_index = np.argmax(answ[i])
-            labels.append(letters_generator.all_symbols[letter_index])
+            if letter_index == self.one_hot_len - 1:
+                labels.append('non_letter')
+            else:
+                labels.append(letters_generator.all_symbols[letter_index])
             if andSave:
                 img = Image.fromarray((pxls[i, :, :, 0] * 255).astype('uint8'), 'L')
                 img.save('answers/{0}_{1}.png'.format(labels[i], i))
@@ -230,11 +240,11 @@ def save_weights_for_visualization(weights):
 
 def main():
     my_model = Model()
-    my_model.build_graph(isToProcess=False)
+    my_model.build_graph(isToProcess=True)
     # save_weights_for_visualization(my_model.interesting_weights())
     my_model.train_model(N_iter=10000)
 
-    ##### CLASSIFY UNICODE #####
+    #### CLASSIFY UNICODE #####
     # basic_path = 'uletters/'
     # all_images = os.listdir(basic_path)
     # symbols = []
