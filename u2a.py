@@ -21,7 +21,6 @@ class Model:
         self.learning_rate = tf.placeholder(tf.float32)
         self.dropout1 = tf.placeholder(tf.float32)
         self.dropout2 = tf.placeholder(tf.float32)
-        self.dropout3 = tf.placeholder(tf.float32)
         self.X = tf.placeholder(tf.float32, shape=[None, img_h, img_w, channels])
         self.Y = tf.placeholder(tf.float32, shape=[None, self.one_hot_len])
         self.transformation_matrix = tf.placeholder(tf.float32, shape=[8])
@@ -45,6 +44,10 @@ class Model:
     def conv2d_nostrides(x, W):
         return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
+    @staticmethod
+    def max_pooling(x):
+        return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
 
     def build_graph(self, isToProcess=True):
         if isToProcess:
@@ -53,31 +56,33 @@ class Model:
             self.processed_X = self.X
 
         with tf.variable_scope('conv0'):
-            W_conv0 = tf.Variable(tf.truncated_normal([5, 5, 1, 32], stddev=0.01), name="W")
-            b_conv0 = tf.Variable(tf.constant(0.1, shape=[32]), name="b")
-            # (batch_size x 32 x 32 x 32)
-            feature_map0_before_dropout = tf.nn.relu(Model.conv2d_nostrides(self.processed_X, W_conv0) + b_conv0)
-            feature_map0 = tf.nn.dropout(feature_map0_before_dropout, self.dropout1)
+            W_conv0 = tf.Variable(tf.truncated_normal([3, 3, 1, 64], stddev=0.01), name="W")
+            b_conv0 = tf.Variable(tf.constant(0.01, shape=[64]), name="b")
+            feature_map0_before_pool = tf.nn.relu(Model.conv2d_nostrides(self.processed_X, W_conv0) + b_conv0)
+            feature_map0 = Model.max_pooling(feature_map0_before_pool)
+            # output is (batch_size x 32 x 32 x 64)
 
         with tf.variable_scope('conv1'):
-            W_conv1 = tf.Variable(tf.truncated_normal([5, 5, 32, 32], stddev=0.01), name="W")
-            b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]), name="b")
-            # (batch_size x 16 x 16 x 32)
-            feature_map1_before_dropout = tf.nn.relu(Model.conv2d(feature_map0, W_conv1) + b_conv1)
-            feature_map1 = tf.nn.dropout(feature_map1_before_dropout, self.dropout2)
+            W_conv1 = tf.Variable(tf.truncated_normal([3, 3, 64, 128 ], stddev=0.01), name="W")
+            b_conv1 = tf.Variable(tf.constant(0.01, shape=[128]), name="b")
+            feature_map1 = tf.nn.relu(Model.conv2d_nostrides(feature_map0, W_conv1) + b_conv1)
+            # output is (batch_size x 16 x 16 x 128)
 
         with tf.variable_scope('conv2'):
-            W_conv2 = tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.01), name="W")
-            b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]), name="b")
-            # (batch_size x 8 x 8 x 64)
-            feature_map2 = tf.nn.relu(Model.conv2d(feature_map1, W_conv2) + b_conv2)
-            feature_map2_flatten = tf.reshape(feature_map2, [-1, 8 * 8 * 64])
+            W_conv2 = tf.Variable(tf.truncated_normal([3, 3, 128, 128], stddev=0.01), name="W")
+            b_conv2 = tf.Variable(tf.constant(0.01, shape=[128]), name="b")
+            feature_map2_before_pool = tf.nn.relu(Model.conv2d_nostrides(feature_map1, W_conv2) + b_conv2)
+            feature_map2 = Model.max_pooling(feature_map2_before_pool)
+            feature_map2_flatten_before_dropout = tf.reshape(feature_map2, [-1, 8 * 8 * 128])
+            feature_map2_flatten = tf.nn.dropout(feature_map2_flatten_before_dropout, self.dropout1)
+            # output is (batch_size x 8 x 8 x 128)
+
 
         with tf.variable_scope('dense1'):
-            W1 = tf.Variable(tf.truncated_normal([8 * 8 * 64, 4096], stddev=0.01), name="W")
-            b1 = tf.Variable(tf.constant(0.1, shape=[4096]), name="b")
+            W1 = tf.Variable(tf.truncated_normal([8 * 8 * 128, 4096], stddev=0.01), name="W")
+            b1 = tf.Variable(tf.constant(0.01, shape=[4096]), name="b")
             h1 = tf.nn.relu(tf.matmul(feature_map2_flatten, W1) + b1)
-            h1_after_dropout = tf.nn.dropout(h1, self.dropout3)
+            h1_after_dropout = tf.nn.dropout(h1, self.dropout2)
 
         with tf.variable_scope('dense2'):
             W2 = tf.Variable(tf.truncated_normal([4096, self.one_hot_len], stddev=0.01), name="W")
@@ -132,17 +137,20 @@ class Model:
             self.X: pxls,
             self.dropout1: 1,
             self.dropout2: 1,
-            self.dropout3: 1,
         }
 
         logits = self.sess.run([self.logits_to_check], feed_dict=feed_dict)[0][0]
         args_of_max = logits.argsort()[-3:][::-1]
+        answ = []
         for arg_i in args_of_max:
             if arg_i == self.one_hot_len - 1:
-                print('non_letter')
+                # print('non_letter')
+                answ.append('nl')
             else:
-                print(letters_generator.all_symbols[arg_i], " : ", logits[arg_i])
-        Image.fromarray((pxls[0, :, :, 0] * 255).astype('uint8'), 'L').show()
+                # print(letters_generator.all_symbols[arg_i], " : ", logits[arg_i])
+                answ.append(letters_generator.all_symbols[arg_i])
+        # Image.fromarray((pxls[0, :, :, 0] * 255).astype('uint8'), 'L').show()
+        return answ
 
 
     def train_model(self,
@@ -161,7 +169,6 @@ class Model:
                 self.Y: Y_batch,
                 self.dropout1: dropout,
                 self.dropout2: dropout,
-                self.dropout3: dropout,
                 self.transformation_matrix: homography.generate_transformation_matrix(),
                 self.learning_rate: learning_rate
             }
@@ -193,6 +200,30 @@ class Model:
         return letters_generator.all_symbols[letter_index]
 
 
+    def show_me_sample(self, andSave=True):
+        self.restore_model()
+
+        X_batch, Y_batch = letters_generator.generate_batch()
+        feed_dict = {
+            self.X: X_batch,
+            self.Y: Y_batch,
+            # self.dropout1: dropout,
+            # self.dropout2: dropout,
+            self.transformation_matrix: homography.generate_transformation_matrix(),
+            # self.learning_rate: learning_rate
+        }
+
+        pxls = self.sess.run([self.processed_X], feed_dict=feed_dict)[0]
+
+        N_imgs = 64
+        for i in range(N_imgs):
+            if andSave:
+                img = Image.fromarray((pxls[i, :, :, 0] * 255).astype('uint8'), 'L')
+                img.save('answers/{0}.png'.format(i))
+
+
+
+
     def classify_batch_of_images(self, imgs_pxls, andSave=False):
         self.restore_model()
 
@@ -207,7 +238,6 @@ class Model:
             # self.transformation_matrix: homography.generate_transformation_matrix(),
             self.dropout1: 1,
             self.dropout2: 1,
-            self.dropout3: 1
         }
 
         # pxls = self.sess.run([self.processed_X], feed_dict=feed_dict)[0]
@@ -242,6 +272,7 @@ def main():
     my_model = Model()
     my_model.build_graph(isToProcess=True)
     # save_weights_for_visualization(my_model.interesting_weights())
+    # my_model.show_me_sample()
     my_model.train_model(N_iter=10000)
 
     #### CLASSIFY UNICODE #####
@@ -256,8 +287,8 @@ def main():
     # symbols = np.array(symbols)
     # my_model.classify_batch_of_images(symbols, andSave=True)
 
-    ##### CHECK LOGITS #####
-    # basic_path = 'new_uletters/'
+    #### CHECK LOGITS #####
+    # basic_path = 'all_unicode/'
     # all_images = os.listdir(basic_path)
     # for img_name in all_images:
         # if img_name[0] == '.':

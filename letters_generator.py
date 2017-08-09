@@ -9,6 +9,7 @@ from nonletter_generator import generate_scribble, generate_shapes
 
 basic_path = "fonts/"
 all_symbols = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-.|\'"
+# all_symbols = "@#^.*()-'/\\|<>~"
 N_symbols = len(all_symbols) + 1 # +1 if nonletters are counted
 
 
@@ -79,7 +80,7 @@ def generate_random_letter(font_size=20,
     return letter_index, pxls
 
 
-def generate_batch(batch_size=32, andSave=False):
+def generate_batch(batch_size=64, andSave=False):
     X = []
     Y = np.zeros((batch_size, N_symbols))
     for i in range(batch_size):
