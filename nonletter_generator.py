@@ -96,6 +96,7 @@ def generate_shapes(h=32,
                     letter_h=20,
                     letter_w=20,
                     N_CIRCLES=3,
+                    N_RECT=2,
                     N_LINES=6,
                     N_POLIES_MIN=3,
                     N_POLIES_MAX=15):
@@ -103,6 +104,7 @@ def generate_shapes(h=32,
     N_circles = np.random.randint(N_CIRCLES)
     N_lines = np.random.randint(N_LINES)
     N_poly = np.random.randint(N_POLIES_MIN, N_POLIES_MAX)
+    N_rect = np.random.randint(N_RECT)
     poly_points = []
     x0 = np.random.randint(w - letter_w)
     y0 = np.random.randint(h - letter_h)
@@ -116,6 +118,12 @@ def generate_shapes(h=32,
         xc = np.random.randint((letter_w - 2 * r)) + r + x0
         yc = np.random.randint((letter_h - 2 * r)) + r + y0
         cv2.circle(img, (xc, yc), r, 255, 1)
+
+    for _ in range(N_rect):
+        a = np.random.randint((letter_w + letter_h)//2)
+        rect_points = [[x0, y0], [x0+a, y0], [x0+a, y0+a], [x0, y0+a]]
+        rect_points = (np.array(rect_points, np.int32)).reshape((-1, 1, 2))
+        cv2.polylines(img, [rect_points], True, 255)
 
     poly_points = (np.array(poly_points, np.int32)).reshape((-1, 1, 2))
     cv2.polylines(img, [poly_points], False, 255)

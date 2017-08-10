@@ -8,7 +8,7 @@ from nonletter_generator import generate_scribble, generate_shapes
 
 
 basic_path = "fonts/"
-all_symbols = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-.|\'"
+all_symbols = "123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-."
 # all_symbols = "@#^.*()-'/\\|<>~"
 N_symbols = len(all_symbols) + 1 # +1 if nonletters are counted
 

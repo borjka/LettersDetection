@@ -101,7 +101,7 @@ class Model:
         self.saver = tf.train.Saver()
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
-        self.var_to_save = W_conv0
+        self.var_to_save = W_conv2
         self.logits_to_check = logits
 
 
@@ -142,13 +142,19 @@ class Model:
         logits = self.sess.run([self.logits_to_check], feed_dict=feed_dict)[0][0]
         args_of_max = logits.argsort()[-3:][::-1]
         answ = []
-        for arg_i in args_of_max:
-            if arg_i == self.one_hot_len - 1:
-                # print('non_letter')
-                answ.append('nl')
-            else:
-                # print(letters_generator.all_symbols[arg_i], " : ", logits[arg_i])
-                answ.append(letters_generator.all_symbols[arg_i])
+        # for arg_i in args_of_max:
+        arg_i = args_of_max[0]
+        if arg_i == self.one_hot_len - 1:
+            # print('non_letter')
+            lbl = 'nl'
+            # answ.append('nl')
+        else:
+            # print(letters_generator.all_symbols[arg_i], " : ", logits[arg_i])
+            lbl = letters_generator.all_symbols[arg_i]
+            # answ.append(letters_generator.all_symbols[arg_i])
+        img = Image.fromarray((pxls[0, :, :, 0] * 255).astype('uint8'), 'L')
+        _id = np.random.randint(1000000)
+        img.save('u2a/{0}_{1}.png'.format(lbl, _id))
         # Image.fromarray((pxls[0, :, :, 0] * 255).astype('uint8'), 'L').show()
         return answ
 
@@ -235,12 +241,10 @@ class Model:
 
         feed_dict = {
             self.X: pxls,
-            # self.transformation_matrix: homography.generate_transformation_matrix(),
             self.dropout1: 1,
             self.dropout2: 1,
         }
 
-        # pxls = self.sess.run([self.processed_X], feed_dict=feed_dict)[0]
         answ = self.sess.run([self.Y_], feed_dict=feed_dict)[0]
         labels = []
         for i in range(N_imgs):
@@ -276,7 +280,7 @@ def main():
     my_model.train_model(N_iter=10000)
 
     #### CLASSIFY UNICODE #####
-    # basic_path = 'uletters/'
+    # basic_path = 'all_unicode/'
     # all_images = os.listdir(basic_path)
     # symbols = []
     # for img_name in all_images:
@@ -290,13 +294,12 @@ def main():
     #### CHECK LOGITS #####
     # basic_path = 'all_unicode/'
     # all_images = os.listdir(basic_path)
+    # if all_images[0][0] == '.':
+        # del all_images[0]
     # for img_name in all_images:
-        # if img_name[0] == '.':
-            # continue
         # img = Image.open(basic_path+img_name)
         # img = np.array(img) / 255
         # my_model.check_top3_logits(img)
-        # input()
 
 
 if __name__ == '__main__':
