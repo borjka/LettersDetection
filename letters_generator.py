@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 import os
 import time
 import skimage
+import cv2
 from nonletter_generator import generate_scribble, generate_shapes
 
 
@@ -39,9 +40,88 @@ def add_blur(img):
     pxls = np.array(img) / 255
     pxls = skimage.util.random_noise(pxls, mode='gaussian', clip=True,
                                      mean=0, var=0.02)
-    pxls = skimage.util.random_noise(pxls, mode='salt', amount=0.02)
+    pxls = skimage.util.random_noise(pxls, mode='salt', amount=0.03)
     return pxls
 
+
+def generate_nonrandom_letter(font_size=20,
+                              w=32,
+                              h=32,
+                              bg_color=0,
+                              font_color=255,
+                              isToShow=False,
+                              letter='A'):
+    """Generate random letter, math symbol or non-letter with relatively
+    random position and random font.
+
+    Args:
+        font_size: letter size
+        w: width of image used to drawing letter
+        h: height of image used to drawing letter
+        bg_color: color of background on the image
+        font_color: color of text on the image
+
+    Returns:
+        1) index of symbol in general array of symbols and 2) values of pixels in range [0, 1]
+    """
+
+    path_to_font = np.random.choice(paths_to_fonts)
+    img = Image.new('L', (h, w), bg_color)
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.truetype(path_to_font, size=font_size)
+    letter_w, letter_h = draw.textsize(letter, font=font)
+    max_x, max_y = w - letter_w - 2, h - letter_h - 2
+    # pos = (x, y)
+    pos = (np.random.randint(low=2, high=max_x), np.random.randint(low=2, high=max_y))
+    draw.text(pos, letter, font=font, fill=font_color)
+    pxls = np.array(img)
+    return pxls
+
+
+def add_line_to_img(img, line_type, pos, letter_w, letter_h):
+    if line_type == 'S':
+        delta_min = 2
+        delta_max = 4
+        x0 = np.random.randint(pos[0], pos[0] + letter_w + 1)
+        y0 = np.random.randint(pos[1], pos[1] + letter_h + 1)
+        x1 = x0 + np.random.randint(delta_min, delta_max+1)
+        y1 = y0 + np.random.randint(delta_min, delta_max+1)
+
+    if line_type == 'M':
+        delta_min = 5
+        delta_max = 8
+        x0 = np.random.randint(pos[0], pos[0] + letter_w + 1)
+        y0 = np.random.randint(pos[1], pos[1] + letter_h + 1)
+        delta_x =  np.random.randint(delta_min, delta_max+1)
+        delta_y =  np.random.randint(delta_min, delta_max+1)
+
+        if x0 - pos[0] > pos[0] + letter_w - x0:
+            delta_x = -delta_x
+
+        if y0 - pos[1] > pos[1] + letter_h - y0:
+            delta_y = -delta_y
+
+        x1 = x0 + delta_x
+        y1 = y0 + delta_y
+
+    if line_type == 'L':
+        delta_min = 11
+        delta_max = 15
+        x0 = np.random.randint(pos[0], pos[0] + letter_w + 1)
+        y0 = np.random.randint(pos[1], pos[1] + round(letter_h * 0.3) + 1)
+        delta_x = np.random.randint(delta_min, delta_max+1)
+        delta_y = np.random.randint(delta_min, delta_max+1)
+
+        if x0 - pos[0] > pos[0] + letter_w - x0:
+            delta_x = -delta_x
+
+        if y0 - pos[1] > pos[1] + letter_h - y0:
+            delta_y = -delta_y
+
+        x1 = x0 + delta_x
+        y1 = y0 + delta_y
+
+    cv2.line(img, (x0, y0), (x1, y1), 255, 1)
 
 
 def generate_random_letter(font_size=20,
@@ -76,6 +156,13 @@ def generate_random_letter(font_size=20,
     pos = (np.random.randint(low=2, high=max_x), np.random.randint(low=2, high=max_y))
     draw.text(pos, letter, font=font, fill=font_color)
     pxls = np.array(img)
+    for _ in range(np.random.randint(6)):
+        add_line_to_img(pxls, 'S', pos, letter_w, letter_h)
+    for _ in range(np.random.randint(4)):
+        add_line_to_img(pxls, 'M', pos, letter_w, letter_h)
+    for _ in range(np.random.randint(3)):
+        add_line_to_img(pxls, 'L', pos, letter_w, letter_h)
+
     assert(letter_index < len(all_symbols))
     return letter_index, pxls
 
@@ -84,7 +171,7 @@ def generate_batch(batch_size=64, andSave=False):
     X = []
     Y = np.zeros((batch_size, N_symbols))
     for i in range(batch_size):
-        isLetter = np.random.choice([True, False], p=[0.95, 0.05])
+        isLetter = np.random.choice([True, False], p=[0.93, 0.07])
         if isLetter:
             y, x = generate_random_letter()
             x = add_blur(x)
@@ -117,8 +204,12 @@ def generate_batch(batch_size=64, andSave=False):
 
 
 def main():
-    X, Y = generate_batch(andSave=True)
-    print(X.shape, Y.shape)
+    for _ in range(40):
+        _, pxls = generate_random_letter()
+        pxls = (add_blur(pxls) * 255).astype('uint8')
+        cv2.imshow('poly', pxls)
+        cv2.waitKey(0)
+    # Image.fromarray(pxls.astype('uint8'), 'L').show()
     # for _ in range(10):
         # s, pxls = generate_random_letter()
         # Image.fromarray(pxls.astype('uint8'), 'L').show()
@@ -138,3 +229,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

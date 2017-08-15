@@ -137,26 +137,26 @@ class Model:
             self.X: pxls,
             self.dropout1: 1,
             self.dropout2: 1,
+            self.transformation_matrix: homography.generate_transformation_matrix(),
         }
 
         logits = self.sess.run([self.logits_to_check], feed_dict=feed_dict)[0][0]
         args_of_max = logits.argsort()[-3:][::-1]
         answ = []
-        # for arg_i in args_of_max:
-        arg_i = args_of_max[0]
-        if arg_i == self.one_hot_len - 1:
-            # print('non_letter')
-            lbl = 'nl'
-            # answ.append('nl')
-        else:
-            # print(letters_generator.all_symbols[arg_i], " : ", logits[arg_i])
-            lbl = letters_generator.all_symbols[arg_i]
-            # answ.append(letters_generator.all_symbols[arg_i])
+        answ_logits = []
         img = Image.fromarray((pxls[0, :, :, 0] * 255).astype('uint8'), 'L')
-        _id = np.random.randint(1000000)
-        img.save('u2a/{0}_{1}.png'.format(lbl, _id))
-        # Image.fromarray((pxls[0, :, :, 0] * 255).astype('uint8'), 'L').show()
-        return answ
+        for arg_i in args_of_max:
+            if arg_i == self.one_hot_len - 1:
+                # print('non_letter')
+                answ.append('nl')
+                answ_logits.append(logits[arg_i])
+            else:
+                # print(letters_generator.all_symbols[arg_i], " : ", logits[arg_i])
+                answ.append(letters_generator.all_symbols[arg_i])
+                answ_logits.append(logits[arg_i])
+                # _id = np.random.randint(1000000)
+            # img.save('strange_u2a/{0}_{1}.png'.format(lbl, _id))
+        return answ, answ_logits
 
 
     def train_model(self,
@@ -173,9 +173,9 @@ class Model:
             feed_dict = {
                 self.X: X_batch,
                 self.Y: Y_batch,
-                self.dropout1: dropout,
+                self.dropout1: 1,
                 self.dropout2: dropout,
-                self.transformation_matrix: homography.generate_transformation_matrix(),
+                # self.transformation_matrix: homography.generate_transformation_matrix(),
                 self.learning_rate: learning_rate
             }
 
@@ -185,25 +185,6 @@ class Model:
                 print('Accuracy: {0}'.format(acc))
             if i % 2000 == 0 or i == N_iter - 1:
                 self.save_model()
-
-
-
-    def classify_one_image(self, img_pxls):
-        self.restore_model()
-
-        if len(img_pxls.shape) !=  4:
-            pxls = np.reshape(img_pxls, (1, img_pxls.shape[0], img_pxls.shape[1], 1))
-        else:
-            pxls = img_pxls
-
-        feed_dict = {
-            self.X: pxls,
-            self.dropout: 1,
-        }
-
-        answ  = self.sess.run([self.Y_], feed_dict=feed_dict)
-        letter_index = np.argmax(answ[0])
-        return letters_generator.all_symbols[letter_index]
 
 
     def show_me_sample(self, andSave=True):
@@ -259,6 +240,12 @@ class Model:
         return labels
 
 
+    def check_statistics(self, pxls):
+        answ, logits = self.check_top3_logits(pxls)
+        print(answ)
+        print(logits)
+
+
 def save_weights_for_visualization(weights):
     arr_weights = []
     w = []
@@ -272,9 +259,11 @@ def save_weights_for_visualization(weights):
         img.save('weights/'+str(i)+'.png')
 
 
+
+
 def main():
     my_model = Model()
-    my_model.build_graph(isToProcess=True)
+    my_model.build_graph(isToProcess=False)
     # save_weights_for_visualization(my_model.interesting_weights())
     # my_model.show_me_sample()
     my_model.train_model(N_iter=10000)
@@ -292,14 +281,15 @@ def main():
     # my_model.classify_batch_of_images(symbols, andSave=True)
 
     #### CHECK LOGITS #####
-    # basic_path = 'all_unicode/'
+    # basic_path = 'strange_letters/'
     # all_images = os.listdir(basic_path)
     # if all_images[0][0] == '.':
         # del all_images[0]
     # for img_name in all_images:
         # img = Image.open(basic_path+img_name)
         # img = np.array(img) / 255
-        # my_model.check_top3_logits(img)
+        # my_model.check_statistics(img)
+        # break
 
 
 if __name__ == '__main__':
