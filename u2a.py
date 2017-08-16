@@ -5,6 +5,7 @@ import homography
 import math
 import os
 import time
+import json
 from PIL import Image
 
 class Model:
@@ -32,6 +33,9 @@ class Model:
         self.var_to_save = None
         self.path_to_model = path_to_model
         self.logits_to_check = None
+        self.margins = dict()
+        self.similar_letters = dict()
+        self.u2a_dict = dict()
 
 
 
@@ -137,7 +141,6 @@ class Model:
             self.X: pxls,
             self.dropout1: 1,
             self.dropout2: 1,
-            self.transformation_matrix: homography.generate_transformation_matrix(),
         }
 
         logits = self.sess.run([self.logits_to_check], feed_dict=feed_dict)[0][0]
@@ -147,16 +150,68 @@ class Model:
         img = Image.fromarray((pxls[0, :, :, 0] * 255).astype('uint8'), 'L')
         for arg_i in args_of_max:
             if arg_i == self.one_hot_len - 1:
-                # print('non_letter')
-                answ.append('nl')
-                answ_logits.append(logits[arg_i])
+                print('non_letter : ', logits[self.one_hot_len - 1])
+                # answ.append('nl')
+                # answ_logits.append(logits[arg_i])
             else:
-                # print(letters_generator.all_symbols[arg_i], " : ", logits[arg_i])
-                answ.append(letters_generator.all_symbols[arg_i])
-                answ_logits.append(logits[arg_i])
-                # _id = np.random.randint(1000000)
+                print(letters_generator.all_symbols[arg_i], " : ", logits[arg_i])
+                # answ.append(letters_generator.all_symbols[arg_i])
+                # answ_logits.append(logits[arg_i])
+                # # _id = np.random.randint(1000000)
             # img.save('strange_u2a/{0}_{1}.png'.format(lbl, _id))
+        img.show()
+        mode = input()
+        if mode == '':
+            self.nonconfused.append(logits[args_of_max[0]] / logits[args_of_max[1]])
+        else:
+            self.confused.append(logits[args_of_max[0]] / logits[args_of_max[1]])
+
+        print('************************')
+        print('CONFUSED')
+        print(self.confused)
+        print('NONCONFUSED')
+        print(self.nonconfused)
+
         return answ, answ_logits
+
+
+    def find_similar_letters(self, img_pxls):
+        batch_size = 64
+        self.restore_model()
+
+        if len(img_pxls.shape) !=  4:
+            pxls = np.reshape(img_pxls, (1, img_pxls.shape[0], img_pxls.shape[1], 1))
+        else:
+            pxls = img_pxls
+
+        feed_dict = {
+            self.X: pxls,
+            self.dropout1: 1,
+            self.dropout2: 1,
+        }
+
+        # logits shape (batch_size x one_hot_len)
+        logits = self.sess.run([self.logits_to_check], feed_dict=feed_dict)[0]
+        # top 3
+        sorted_logits_args = logits.argsort()[:, ::-1][:, :3]
+        for i in range(batch_size):
+            symbols = letters_generator.all_symbols
+            if sorted_logits_args[i][0] == self.one_hot_len - 1:
+                first_label = 'nl'
+            else:
+                first_label = symbols[sorted_logits_args[i][0]]
+            if sorted_logits_args[i][1] == self.one_hot_len - 1:
+                second_label = 'nl'
+            else:
+                second_label = symbols[sorted_logits_args[i][1]]
+
+            if first_label != 'nl':
+                if first_label not in self.similar_letters:
+                    self.similar_letters[first_label] = dict()
+                if second_label not in self.similar_letters[first_label]:
+                    self.similar_letters[first_label][second_label] = 1
+                else:
+                    self.similar_letters[first_label][second_label] += 1
 
 
     def train_model(self,
@@ -209,9 +264,31 @@ class Model:
                 img.save('answers/{0}.png'.format(i))
 
 
+    def find_similar_letters_for_batch(self, imgs_pxls):
+        self.restore_model()
+        with open('similar_letters.json', 'r') as f:
+            self.similar_letters = json.load(f)
+
+        # N_imgs = imgs_pxls.shape[0]
+        # if len(imgs_pxls.shape) !=  4:
+            # pxls = np.reshape(imgs_pxls, (N_imgs, imgs_pxls.shape[1], imgs_pxls.shape[2], 1))
+        # else:
+            # pxls = imgs_pxls
+
+        # feed_dict = {
+            # self.X: pxls,
+            # self.dropout1: 1,
+            # self.dropout2: 1,
+        # }
+
+        # # logits shape (batch_size x one_hot_len)
+        # logits = self.sess.run([self.logits_to_check], feed_dict=feed_dict)[0]
+        # # top 3
+        # sorted_logits_args = logits.argsort()[:, ::-1][:, :3]
 
 
-    def classify_batch_of_images(self, imgs_pxls, andSave=False):
+
+    def classify_batch_of_images(self, imgs_pxls, names=None, andSave=False):
         self.restore_model()
 
         N_imgs = imgs_pxls.shape[0]
@@ -228,28 +305,36 @@ class Model:
 
         answ = self.sess.run([self.Y_], feed_dict=feed_dict)[0]
         labels = []
-        for i in range(N_imgs):
-            letter_index = np.argmax(answ[i])
-            if letter_index == self.one_hot_len - 1:
-                labels.append('non_letter')
-            else:
-                labels.append(letters_generator.all_symbols[letter_index])
-            if andSave:
-                img = Image.fromarray((pxls[i, :, :, 0] * 255).astype('uint8'), 'L')
-                img.save('answers/{0}_{1}.png'.format(labels[i], i))
+        if names is None:
+            for i in range(N_imgs):
+                letter_index = np.argmax(answ[i])
+                if letter_index == self.one_hot_len - 1:
+                    labels.append('non_letter')
+                else:
+                    labels.append(letters_generator.all_symbols[letter_index])
+                if andSave:
+                    img = Image.fromarray((pxls[i, :, :, 0] * 255).astype('uint8'), 'L')
+                    img.save('answers/{0}_{1}.png'.format(labels[i], i))
+        else:
+            for i, name0 in enumerate(names):
+                name = name0.split('.')[0]
+                letter_index = np.argmax(answ[i])
+                if letter_index == self.one_hot_len - 1:
+                    self.u2a_dict[name] = 'non_letter'
+                else:
+                    self.u2a_dict[name] = letters_generator.all_symbols[letter_index]
         return labels
 
 
-    def check_statistics(self, pxls):
-        answ, logits = self.check_top3_logits(pxls)
-        print(answ)
-        print(logits)
+    def save_dict(self):
+        with open('u2a_dict.json', 'w') as f:
+            json.dump(self.u2a_dict, f, sort_keys=True, indent=4)
 
 
 def save_weights_for_visualization(weights):
     arr_weights = []
     w = []
-    for i in range(32):
+    for i in range(64):
         arr_weights.append(weights[:, :, 0, i])
         min_val = np.amin(arr_weights[i])
         max_val = np.amax(arr_weights[i])
@@ -265,31 +350,38 @@ def main():
     my_model = Model()
     my_model.build_graph(isToProcess=False)
     # save_weights_for_visualization(my_model.interesting_weights())
-    # my_model.show_me_sample()
-    my_model.train_model(N_iter=10000)
 
-    #### CLASSIFY UNICODE #####
-    # basic_path = 'all_unicode/'
-    # all_images = os.listdir(basic_path)
-    # symbols = []
-    # for img_name in all_images:
-        # if img_name[0] == '.':
-            # continue
-        # img = Image.open(basic_path+img_name)
-        # symbols.append(np.array(img) / 255)
-    # symbols = np.array(symbols)
-    # my_model.classify_batch_of_images(symbols, andSave=True)
 
     #### CHECK LOGITS #####
-    # basic_path = 'strange_letters/'
+    # basic_path = 'to_clf/'
     # all_images = os.listdir(basic_path)
     # if all_images[0][0] == '.':
         # del all_images[0]
     # for img_name in all_images:
         # img = Image.open(basic_path+img_name)
         # img = np.array(img) / 255
-        # my_model.check_statistics(img)
-        # break
+        # my_model.check_top3_logits(img)
+
+    #### CLASSIFY UNICODE ####
+    basic_path = 'all_unicode/'
+    all_images = os.listdir(basic_path)
+    if all_images[0][0] == '.':
+        del all_images[0]
+    batch_size = 64
+    for i in range(batch_size, len(all_images), batch_size):
+        if i % 1024 == 0:
+            print(i)
+        batch_names = all_images[(i - batch_size):i]
+        assert(len(batch_names) == batch_size)
+        batch = []
+        for j in range(batch_size):
+            img = Image.open(basic_path+batch_names[j])
+            img = np.array(img) / 255
+            batch.append(img)
+        batch = np.stack(batch, axis=0)
+        my_model.classify_batch_of_images(batch, names=batch_names)
+
+    my_model.save_dict()
 
 
 if __name__ == '__main__':
